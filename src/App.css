@@ -290,3 +290,947 @@ nav > div a:hover {
   color: #d4d4d8;
   font-size: 0.75rem;
 }
+
+/* Klikbare projectkaart */
+
+.project-card-link {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.project-card {
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.project-card:hover {
+  transform: translateY(-5px);
+  border-color: #22d3ee;
+}
+
+.project-card:focus-within {
+  border-color: #22d3ee;
+}
+
+.project-card-link:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 4px;
+}
+
+.project-card-cta {
+  display: inline-block;
+  margin-top: 24px;
+  color: #22d3ee;
+  font-weight: 600;
+}
+
+/* Projectdetailpagina */
+
+.project-detail {
+  min-height: 100vh;
+  padding: 120px 32px 100px;
+}
+
+.project-detail-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.project-back {
+  display: inline-block;
+  margin-bottom: 48px;
+  color: #22d3ee;
+  text-decoration: none;
+}
+
+.project-detail h1 {
+  margin: 16px 0;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  letter-spacing: -0.05em;
+}
+
+.project-detail-intro {
+  max-width: 700px;
+  margin-bottom: 48px;
+  color: #a1a1aa;
+  font-size: 1.2rem;
+  line-height: 1.7;
+}
+
+.project-detail-cover {
+  display: block;
+  width: 100%;
+  max-height: 560px;
+  border-radius: 20px;
+  object-fit: cover;
+}
+
+.project-detail-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin: 48px 0;
+  padding: 32px 0;
+  border-bottom: 1px solid #27272a;
+}
+
+.project-detail-meta h2 {
+  margin-bottom: 8px;
+  color: #a1a1aa;
+  font-size: 0.85rem;
+}
+
+.project-detail-meta p {
+  margin: 0;
+}
+
+.project-detail-story {
+  max-width: 760px;
+}
+
+.project-detail-story h2,
+.project-detail-gallery h2 {
+  margin: 48px 0 16px;
+  font-size: 1.8rem;
+}
+
+.project-detail-story p {
+  color: #a1a1aa;
+  line-height: 1.8;
+}
+
+.project-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+}
+
+.project-gallery-grid img {
+  display: block;
+  width: 100%;
+  border-radius: 14px;
+}
+
+.project-not-found {
+  min-height: 60vh;
+  padding: 160px 32px 80px;
+  text-align: center;
+}
+
+.project-not-found a {
+  color: #22d3ee;
+}
+
+@media (max-width: 700px) {
+  .project-detail {
+    padding: 100px 20px 64px;
+  }
+
+  .project-detail-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-card {
+    transition: none;
+  }
+}
+
+/* Admin-dashboard: lokaal prototype */
+
+.admin-page {
+  min-height: 100vh;
+  padding: 64px 24px;
+  background: #09090f;
+}
+
+.admin-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.admin-heading h1 {
+  margin: 12px 0;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+}
+
+.admin-heading p,
+.admin-empty {
+  color: #a1a1aa;
+}
+
+.admin-back {
+  color: #22d3ee;
+  text-decoration: none;
+}
+
+.admin-notice {
+  margin-bottom: 28px;
+  padding: 16px 20px;
+  border: 1px solid #854d0e;
+  border-radius: 12px;
+  background: #291c0c;
+  color: #fde68a;
+  line-height: 1.6;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.admin-panel {
+  min-width: 0;
+  padding: 28px;
+  border: 1px solid #27272a;
+  border-radius: 18px;
+  background: #181821;
+}
+
+.admin-panel h2 {
+  margin: 0 0 24px;
+  font-size: 1.5rem;
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-form label {
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.admin-form input,
+.admin-form textarea,
+.admin-form select {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid #3f3f46;
+  border-radius: 10px;
+  background: #101018;
+  color: #fafafa;
+  font: inherit;
+}
+
+.admin-form input:focus,
+.admin-form textarea:focus,
+.admin-form select:focus {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
+.admin-submit {
+  margin-top: 16px;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(120deg, #ec4899, #22d3ee);
+  color: #09090f;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-preview {
+  overflow-wrap: anywhere;
+}
+
+.admin-preview h3 {
+  margin: 20px 0 12px;
+  font-size: 1.8rem;
+}
+
+.admin-preview p {
+  color: #a1a1aa;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.admin-status {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #164e63;
+  color: #a5f3fc;
+  font-size: 0.8rem;
+}
+
+.admin-preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 24px;
+  color: #d4d4d8;
+}
+
+@media (max-width: 800px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-heading {
+    flex-direction: column;
+  }
+
+  .admin-panel {
+    padding: 20px;
+  }
+}
+
+/* =========================================
+   RGB Visuals CMS - Dashboard en zijmenu
+   ========================================= */
+
+.cms-layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: 100vh;
+  background: #09090f;
+  color: #f4f4f5;
+}
+
+.cms-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 28px 18px;
+  border-right: 1px solid #27272a;
+  background: #111119;
+}
+
+.cms-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+}
+
+.cms-brand-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ec4899, #22d3ee);
+  color: #09090f;
+  font-weight: 800;
+}
+
+.cms-brand strong,
+.cms-brand small {
+  display: block;
+}
+
+.cms-brand small {
+  margin-top: 4px;
+  color: #a1a1aa;
+}
+
+.cms-menu-label {
+  margin: 12px 12px 0;
+  color: #71717a;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.cms-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cms-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #a1a1aa;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cms-nav-item:hover,
+.cms-nav-item-active {
+  border-color: #164e63;
+  background: #172a35;
+  color: #67e8f9;
+}
+
+.cms-portfolio-link {
+  margin-top: auto;
+  padding: 12px;
+  color: #22d3ee;
+  text-decoration: none;
+}
+
+.cms-main {
+  min-width: 0;
+  padding: 42px;
+}
+
+.cms-page-heading h1,
+.cms-placeholder h1 {
+  margin: 12px 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.cms-page-heading > p:last-child,
+.cms-placeholder > p:last-child {
+  color: #a1a1aa;
+}
+
+.cms-notice {
+  margin: 28px 0;
+  padding: 16px 20px;
+  border: 1px solid #854d0e;
+  border-radius: 12px;
+  background: #291c0c;
+  color: #fde68a;
+  line-height: 1.6;
+}
+
+.cms-module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.cms-module-card {
+  min-height: 180px;
+  padding: 24px;
+  border: 1px solid #27272a;
+  border-radius: 16px;
+  background: #181821;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cms-module-card:hover,
+.cms-module-card:focus-visible {
+  border-color: #22d3ee;
+}
+
+.cms-module-card h2 {
+  margin: 0 0 12px;
+}
+
+.cms-module-card p {
+  color: #a1a1aa;
+  line-height: 1.6;
+}
+
+.cms-module-card span {
+  display: inline-block;
+  margin-top: 14px;
+  color: #22d3ee;
+  font-weight: 600;
+}
+
+.cms-info-panel,
+.cms-placeholder {
+  margin-top: 24px;
+  padding: 28px;
+  border: 1px solid #27272a;
+  border-radius: 16px;
+  background: #181821;
+}
+
+.cms-info-panel p {
+  color: #d4d4d8;
+}
+
+.cms-info-panel small {
+  color: #a1a1aa;
+}
+
+/* Bestaand projectformulier in het nieuwe dashboard */
+
+.cms-main .admin-page {
+  min-height: auto;
+  padding: 0;
+  background: transparent;
+}
+
+.cms-main .admin-container {
+  max-width: none;
+}
+
+/* Responsive dashboard */
+
+@media (max-width: 850px) {
+  .cms-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cms-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #27272a;
+  }
+
+  .cms-navigation {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .cms-nav-item {
+    width: auto;
+  }
+
+  .cms-main {
+    padding: 24px 16px;
+  }
+
+  .cms-module-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================
+   RGB VISUALS — HERO ANIMATIES
+   ========================================= */
+
+.rgb-hero {
+  position: relative;
+  isolation: isolate;
+}
+
+.rgb-hero .hero-content {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+}
+
+/* Titel */
+
+.rgb-hero-title {
+  max-width: 680px;
+  font-size: clamp(2.8rem, 4.8vw, 5.3rem);
+  line-height: 1.04;
+  letter-spacing: -0.055em;
+}
+
+.rgb-hero-title-line {
+  display: block;
+  opacity: 0;
+  animation: rgbHeroReveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.rgb-hero-gradient {
+  width: fit-content;
+  color: #f577cc;
+  background: linear-gradient(100deg, #ff73c8 15%, #c77bff 55%, #57d9f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Teksten en knoppen verschijnen na de titel */
+
+.rgb-hero-reveal {
+  opacity: 0;
+  animation: rgbHeroReveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.rgb-delay-1 {
+  animation-delay: 0.1s;
+}
+
+.rgb-delay-2 {
+  animation-delay: 0.25s;
+}
+
+.rgb-delay-3 {
+  animation-delay: 0.4s;
+}
+
+.rgb-delay-4 {
+  animation-delay: 0.55s;
+}
+
+.rgb-delay-5 {
+  animation-delay: 0.7s;
+}
+
+.rgb-delay-6 {
+  animation-delay: 0.85s;
+}
+
+/* Illustratie */
+
+.rgb-hero-visual {
+  position: relative;
+  isolation: isolate;
+}
+
+.rgb-hero-visual::before {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+
+  background: radial-gradient(
+    ellipse,
+    rgba(174, 67, 236, 0.26) 0%,
+    rgba(255, 91, 191, 0.12) 36%,
+    rgba(38, 205, 245, 0.06) 55%,
+    transparent 75%
+  );
+
+  filter: blur(30px);
+  animation: rgbGlow 6s ease-in-out infinite alternate;
+}
+
+.rgb-hero-floating {
+  width: 100%;
+  animation:
+    rgbHeroReveal 1.2s 0.4s both,
+    rgbFloat 6s 1.6s ease-in-out infinite;
+}
+
+.rgb-hero-floating img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 560px;
+
+  filter: drop-shadow(0 24px 50px rgba(168, 58, 232, 0.13));
+
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.5s ease;
+}
+
+/* Hover op apparaten met een muis */
+
+@media (hover: hover) and (pointer: fine) {
+  .rgb-hero-visual:hover img {
+    transform: scale(1.035) rotate(-1.5deg);
+    filter: drop-shadow(0 30px 65px rgba(191, 84, 242, 0.28));
+  }
+
+  .rgb-hero .button-primary,
+  .rgb-hero .button-secondary {
+    transition:
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+
+  .rgb-hero .button-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 35px rgba(235, 90, 188, 0.28);
+  }
+
+  .rgb-hero .button-secondary:hover {
+    transform: translateY(-3px);
+  }
+}
+
+/* Keyframes */
+
+@keyframes rgbHeroReveal {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rgbFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes rgbGlow {
+  from {
+    opacity: 0.65;
+    transform: scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+/* Toegankelijkheid: geen animaties bij verminderde beweging */
+
+@media (prefers-reduced-motion: reduce) {
+  .rgb-hero *,
+  .rgb-hero *::before,
+  .rgb-hero *::after {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1;
+  }
+}
+
+/* =========================================
+   RGB VISUALS — HERO LAYOUT VERBETERING
+   ========================================= */
+
+/* Meer ruimte voor de tekst, iets minder voor de illustratie */
+.rgb-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 56px);
+
+  min-height: calc(100svh - 86px);
+  padding: clamp(28px, 5vh, 64px) 32px clamp(42px, 7vh, 90px);
+  box-sizing: border-box;
+}
+
+/* Voorkomt dat de titel onnodig smal wordt */
+.rgb-hero .hero-content {
+  width: 100%;
+  max-width: 680px;
+}
+
+/* Titel iets compacter, maar nog steeds opvallend */
+.rgb-hero .rgb-hero-title {
+  max-width: none;
+  margin: 18px 0 22px;
+
+  font-size: clamp(2.8rem, 4vw, 4rem);
+  line-height: 1.06;
+  letter-spacing: -0.055em;
+}
+
+/* De bestaande tekst neemt minder verticale ruimte in */
+.rgb-hero .hero-description {
+  max-width: 570px;
+  margin: 0 0 12px;
+
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Knoppen dichter bij de tekst */
+.rgb-hero .hero-actions {
+  margin-top: 26px;
+}
+
+/* Illustratie duidelijker in beeld */
+.rgb-hero .hero-image {
+  width: 100%;
+  min-width: 0;
+}
+
+.rgb-hero .rgb-hero-floating {
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+.rgb-hero .rgb-hero-floating img {
+  width: 100%;
+  max-width: 520px;
+}
+
+/* Compactere opmaak op laptops met een laag scherm */
+@media (min-width: 861px) and (max-height: 760px) {
+  .rgb-hero {
+    padding-top: 24px;
+    padding-bottom: 36px;
+  }
+
+  .rgb-hero .rgb-hero-title {
+    font-size: clamp(2.5rem, 3.55vw, 3.65rem);
+    margin: 12px 0 16px;
+  }
+
+  .rgb-hero .hero-description {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .rgb-hero .hero-actions {
+    margin-top: 18px;
+  }
+
+  .rgb-hero .rgb-hero-floating {
+    max-width: 440px;
+  }
+}
+
+/* Tablet en mobiel: tekst boven, illustratie eronder */
+@media (max-width: 860px) {
+  .rgb-hero {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+    gap: 36px;
+    padding: 56px 24px 72px;
+  }
+
+  .rgb-hero .hero-content {
+    max-width: 680px;
+  }
+
+  .rgb-hero .rgb-hero-title {
+    font-size: clamp(2.7rem, 7vw, 4rem);
+  }
+
+  .rgb-hero .hero-image {
+    max-width: 460px;
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .rgb-hero {
+    padding: 44px 20px 60px;
+  }
+
+  .rgb-hero .rgb-hero-title {
+    font-size: clamp(2.35rem, 9vw, 3.2rem);
+  }
+
+  .rgb-hero .hero-actions {
+    gap: 12px;
+  }
+
+  .rgb-hero .button-primary,
+  .rgb-hero .button-secondary {
+    width: 100%;
+  }
+}
+
+/* =========================================
+   RGB VISUALS — INTERACTIEVE 3D HERO
+   ========================================= */
+
+.rgb-hero-visual {
+  --rgb-tilt-x: 0deg;
+  --rgb-tilt-y: 0deg;
+  --rgb-tilt-scale: 1;
+
+  perspective: 1000px;
+}
+
+/* De afbeelding kantelt, terwijl de buitenste wrapper blijft zweven. */
+
+.rgb-hero .rgb-hero-visual .rgb-hero-tilt-image {
+  transform: rotateX(var(--rgb-tilt-x)) rotateY(var(--rgb-tilt-y))
+    scale(var(--rgb-tilt-scale));
+
+  transform-style: preserve-3d;
+  transform-origin: center;
+
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.35s ease;
+
+  will-change: transform;
+}
+
+/* Iets meer diepte bij hover */
+
+@media (hover: hover) and (pointer: fine) {
+  .rgb-hero-visual:hover {
+    --rgb-tilt-scale: 1.035;
+  }
+
+  .rgb-hero .rgb-hero-visual:hover .rgb-hero-tilt-image {
+    filter: drop-shadow(0 35px 65px rgba(191, 84, 242, 0.28));
+  }
+}
+
+/* Geen kanteling voor bezoekers die minder beweging willen */
+
+@media (prefers-reduced-motion: reduce) {
+  .rgb-hero .rgb-hero-visual .rgb-hero-tilt-image {
+    transform: none !important;
+    transition: none !important;
+    will-change: auto;
+  }
+}
+
+/* =========================================
+   RGB VISUALS — INTERACTIEVE LICHTREFLECTIE
+   ========================================= */
+
+.rgb-hero-visual {
+  --rgb-light-x: 50%;
+  --rgb-light-y: 50%;
+}
+
+.rgb-hero .rgb-hero-floating {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Zachte lichtreflectie die de muis volgt */
+
+.rgb-hero .rgb-hero-floating::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+
+  background: radial-gradient(
+    circle 105px at var(--rgb-light-x) var(--rgb-light-y),
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 111, 210, 0.13) 35%,
+    rgba(67, 218, 255, 0.06) 58%,
+    transparent 100%
+  );
+
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+/* Lichtreflectie zichtbaar bij hover */
+
+@media (hover: hover) and (pointer: fine) {
+  .rgb-hero-visual:hover .rgb-hero-floating::after {
+    opacity: 0.75;
+  }
+}
+
+/* Geen reflectie bij verminderde beweging */
+
+@media (prefers-reduced-motion: reduce) {
+  .rgb-hero .rgb-hero-floating::after {
+    opacity: 0 !important;
+    transition: none !important;
+  }
+}

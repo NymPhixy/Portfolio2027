@@ -1,3 +1,4 @@
+
 export type Project = {
   id: number;
   title: string;
@@ -6,4 +7,12 @@ export type Project = {
   image: string;
   technologies: string[];
   status: "draft" | "published";
+
+  // Inhoud voor de casestudy
+  client: string;
+  role: string;
+  challenge: string;
+  solution: string;
+  result: string;
+  gallery: string[];
 };
