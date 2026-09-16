@@ -1,10 +1,10 @@
-
 export type Project = {
-  id: number;
+  id: number | string;
   title: string;
   description: string;
-  year: number;
+  year: number | null;
   image: string;
+  imageIsPlaceholder?: boolean;
   technologies: string[];
   status: "draft" | "published";
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import CoverUploader from "../components/CoverUploader";
 
 type ProjectForm = {
   title: string;
@@ -7,6 +8,11 @@ type ProjectForm = {
   client: string;
   year: string;
   status: "draft" | "published";
+  role: string;
+  technologies: string;
+  challenge: string;
+  solution: string;
+  result: string;
 };
 
 type Project = {
@@ -17,15 +23,17 @@ type Project = {
   description: string | null;
   client: string | null;
   year: number | null;
-  cover_image: string | null;
   status: "draft" | "published";
-  created_at: string;
-  updated_at: string;
+  role: string | null;
+  technologies: string | null;
+  challenge: string | null;
+  solution: string | null;
+  result: string | null;
+  cover_image: string | null;
 };
 
 type ProjectsResponse = {
   projects: Project[];
-  error?: string;
 };
 
 type SaveResponse = {
@@ -40,12 +48,37 @@ function createEmptyForm(): ProjectForm {
     client: "",
     year: String(new Date().getFullYear()),
     status: "draft",
+    role: "",
+    technologies: "",
+    challenge: "",
+    solution: "",
+    result: "",
   };
+}
+
+function technologiesToText(value: string | null): string {
+  if (!value) return "";
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    if (
+      Array.isArray(parsed) &&
+      parsed.every((item) => typeof item === "string")
+    ) {
+      return parsed.join(", ");
+    }
+  } catch {
+    // Ongeldige JSON wordt niet als invoer overgenomen.
+  }
+
+  return "";
 }
 
 export default function ProjectEditor() {
   const [form, setForm] = useState<ProjectForm>(createEmptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const isEditing = editingId !== null;
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
@@ -125,6 +158,11 @@ export default function ProjectEditor() {
         ? String(project.year)
         : String(new Date().getFullYear()),
       status: project.status,
+      role: project.role ?? "",
+      technologies: technologiesToText(project.technologies),
+      challenge: project.challenge ?? "",
+      solution: project.solution ?? "",
+      result: project.result ?? "",
     });
 
     setSaveMessage("");
@@ -145,11 +183,23 @@ export default function ProjectEditor() {
 
     if (isSaving) return;
 
-    setIsSaving(true);
     setSaveMessage("");
     setSaveError("");
 
-    const isEditing = editingId !== null;
+    const technologies = form.technologies
+      .split(",")
+      .map((technology) => technology.trim())
+      .filter((technology) => technology !== "");
+
+    if (
+      technologies.length > 20 ||
+      technologies.some((technology) => technology.length > 60)
+    ) {
+      setSaveError("Gebruik maximaal 20 technologieën van maximaal 60 tekens.");
+      return;
+    }
+
+    setIsSaving(true);
 
     const endpoint = isEditing
       ? `/api/admin/projects/${editingId}`
@@ -162,7 +212,10 @@ export default function ProjectEditor() {
           "Content-Type": "application/json",
         },
         credentials: "same-origin",
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          technologies,
+        }),
       });
 
       const data: SaveResponse = await response.json();
@@ -180,8 +233,6 @@ export default function ProjectEditor() {
 
       setEditingId(null);
       setForm(createEmptyForm());
-
-      // Vernieuw de lijst met concepten en gepubliceerde projecten.
       setRefreshKey((current) => current + 1);
     } catch (error) {
       setSaveError(
@@ -201,21 +252,14 @@ export default function ProjectEditor() {
           <div>
             <p className="hero-label">RGB VISUALS CMS</p>
             <h1>Projecten</h1>
-            <p>Maak projecten aan en bewerk bestaande projecten.</p>
+            <p>Maak projecten aan en beheer je casestudy's.</p>
           </div>
-        </div>
-
-        <div className="admin-notice">
-          Conceptprojecten zijn alleen zichtbaar in het CMS. Gepubliceerde
-          projecten verschijnen ook via de openbare projecten-API.
         </div>
 
         <div className="admin-layout">
           <div className="admin-panel">
             <h2>
-              {editingId !== null
-                ? `Project #${editingId} bewerken`
-                : "Nieuw project"}
+              {isEditing ? `Project #${editingId} bewerken` : "Nieuw project"}
             </h2>
 
             <form onSubmit={handleSubmit} className="admin-form">
@@ -226,7 +270,6 @@ export default function ProjectEditor() {
                 maxLength={150}
                 value={form.title}
                 onChange={(event) => updateField("title", event.target.value)}
-                placeholder="Bijvoorbeeld: Tuinman Piet"
                 required
               />
 
@@ -234,12 +277,11 @@ export default function ProjectEditor() {
               <textarea
                 id="project-description"
                 maxLength={10000}
+                rows={4}
                 value={form.description}
                 onChange={(event) =>
                   updateField("description", event.target.value)
                 }
-                placeholder="Waar gaat het project over?"
-                rows={4}
                 required
               />
 
@@ -250,7 +292,6 @@ export default function ProjectEditor() {
                 maxLength={150}
                 value={form.client}
                 onChange={(event) => updateField("client", event.target.value)}
-                placeholder="Naam van de opdrachtgever"
                 required
               />
 
@@ -280,6 +321,64 @@ export default function ProjectEditor() {
                 <option value="published">Gepubliceerd</option>
               </select>
 
+              <h2 style={{ marginTop: "32px" }}>Casestudy</h2>
+
+              <label htmlFor="project-role">Mijn rol</label>
+              <input
+                id="project-role"
+                type="text"
+                maxLength={150}
+                placeholder="Bijvoorbeeld: UX/UI Designer"
+                value={form.role}
+                onChange={(event) => updateField("role", event.target.value)}
+              />
+
+              <label htmlFor="project-technologies">Technologieën</label>
+              <input
+                id="project-technologies"
+                type="text"
+                placeholder="React, TypeScript, PHP, MySQL"
+                value={form.technologies}
+                onChange={(event) =>
+                  updateField("technologies", event.target.value)
+                }
+              />
+              <small>Scheid technologieën met een komma.</small>
+
+              <label htmlFor="project-challenge">De uitdaging</label>
+              <textarea
+                id="project-challenge"
+                rows={5}
+                maxLength={10000}
+                value={form.challenge}
+                onChange={(event) =>
+                  updateField("challenge", event.target.value)
+                }
+                placeholder="Welk probleem wilde je oplossen?"
+              />
+
+              <label htmlFor="project-solution">De oplossing</label>
+              <textarea
+                id="project-solution"
+                rows={5}
+                maxLength={10000}
+                value={form.solution}
+                onChange={(event) =>
+                  updateField("solution", event.target.value)
+                }
+                placeholder="Hoe heb je het aangepakt?"
+              />
+
+              <label htmlFor="project-result">Het resultaat</label>
+              <textarea
+                id="project-result"
+                rows={5}
+                maxLength={10000}
+                value={form.result}
+                onChange={(event) => updateField("result", event.target.value)}
+                placeholder="Wat heeft het project opgeleverd?"
+              />
+
               {saveError && <p role="alert">{saveError}</p>}
               {saveMessage && <p role="status">{saveMessage}</p>}
 
@@ -290,12 +389,12 @@ export default function ProjectEditor() {
               >
                 {isSaving
                   ? "Bezig met opslaan..."
-                  : editingId !== null
+                  : isEditing
                     ? "Wijzigingen opslaan"
                     : "Project opslaan"}
               </button>
 
-              {editingId !== null && (
+              {isEditing && (
                 <button
                   type="button"
                   onClick={cancelEditing}
@@ -305,6 +404,22 @@ export default function ProjectEditor() {
                 </button>
               )}
             </form>
+
+            {editingId !== null && (
+              <CoverUploader
+                key={editingId}
+                projectId={editingId}
+                isPublished={
+                  projects.find((project) => project.id === editingId)
+                    ?.status === "published"
+                }
+                coverImage={
+                  projects.find((project) => project.id === editingId)
+                    ?.cover_image ?? null
+                }
+                onUploaded={() => setRefreshKey((current) => current + 1)}
+              />
+            )}
           </div>
 
           <div className="admin-panel">
@@ -316,13 +431,39 @@ export default function ProjectEditor() {
               </span>
 
               <h3>{form.title || "Projectnaam"}</h3>
-
               <p>{form.description || "Projectbeschrijving"}</p>
 
               <div className="admin-preview-meta">
                 <span>Opdrachtgever: {form.client || "—"}</span>
                 <span>Jaar: {form.year || "—"}</span>
+
+                {form.role && <span>Mijn rol: {form.role}</span>}
+
+                {form.technologies && (
+                  <span>Technologieën: {form.technologies}</span>
+                )}
               </div>
+
+              {form.challenge && (
+                <>
+                  <h3>De uitdaging</h3>
+                  <p>{form.challenge}</p>
+                </>
+              )}
+
+              {form.solution && (
+                <>
+                  <h3>De oplossing</h3>
+                  <p>{form.solution}</p>
+                </>
+              )}
+
+              {form.result && (
+                <>
+                  <h3>Het resultaat</h3>
+                  <p>{form.result}</p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -355,7 +496,8 @@ export default function ProjectEditor() {
                   </p>
 
                   <small>
-                    {project.client ?? "Geen opdrachtgever"} ·{" "}
+                    {project.client ?? "Geen opdrachtgever"}
+                    {" · "}
                     {project.year ?? "Geen jaar"}
                   </small>
 

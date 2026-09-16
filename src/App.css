@@ -1234,3 +1234,293 @@ nav > div a:hover {
     transition: none !important;
   }
 }
+
+/* =========================================
+   RGB VISUALS — HERO NAAR PROJECTEN
+   ========================================= */
+
+.projects-section {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      ellipse 45% 260px at 18% 8%,
+      rgba(236, 72, 153, 0.09),
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 40% 240px at 85% 12%,
+      rgba(34, 211, 238, 0.07),
+      transparent 100%
+    ),
+    linear-gradient(180deg, #09090f 0%, #0f0f18 22%, #0f0f18 100%);
+}
+
+/* Dunne gradientlijn als visuele scheiding */
+
+.projects-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: min(85%, 1100px);
+  height: 1px;
+  transform: translateX(-50%);
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(236, 72, 153, 0.45),
+    rgba(34, 211, 238, 0.45),
+    transparent
+  );
+}
+
+/* Projectkaarten krijgen een verfijnder hover-effect */
+
+@media (hover: hover) and (pointer: fine) {
+  .projects-section .project-card {
+    transition:
+      transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.4s ease,
+      box-shadow 0.4s ease;
+  }
+
+  .projects-section .project-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(34, 211, 238, 0.55);
+
+    box-shadow:
+      0 20px 55px rgba(0, 0, 0, 0.3),
+      0 0 30px rgba(34, 211, 238, 0.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .projects-section .project-card {
+    transition: none;
+  }
+}
+
+/* =========================================
+   RGB VISUALS — PROJECTEN SCROLL ANIMATIE
+   ========================================= */
+
+/* Standaard blijven alle kaarten zichtbaar.
+   De animatie werkt alleen in browsers die dit ondersteunen. */
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .projects-section .project-card {
+      animation: rgbProjectReveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 85%;
+    }
+
+    /* Een klein verschil in timing per kaart */
+    .projects-section .project-card:nth-child(3n + 2) {
+      animation-range: entry 8% entry 95%;
+    }
+
+    .projects-section .project-card:nth-child(3n + 3) {
+      animation-range: entry 16% entry 100%;
+    }
+  }
+}
+
+@keyframes rgbProjectReveal {
+  from {
+    opacity: 0;
+    translate: 0 32px;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* Bezoekers die minder beweging willen, zien direct alle kaarten. */
+
+@media (prefers-reduced-motion: reduce) {
+  .projects-section .project-card {
+    animation: none !important;
+    opacity: 1;
+    translate: none;
+  }
+}
+
+/* =========================================
+   RGB VISUALS — PROJECTEN IN BEELD
+   ========================================= */
+
+@media (prefers-reduced-motion: no-preference) {
+  .projects-section .projects-grid.rgb-scroll-ready .project-card {
+    animation: none;
+    opacity: 0;
+    translate: 0 28px;
+
+    transition:
+      opacity 0.7s ease,
+      translate 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.4s ease,
+      box-shadow 0.4s ease;
+  }
+
+  .projects-section .projects-grid.rgb-scroll-ready .project-card.rgb-in-view {
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  .projects-section
+    .projects-grid.rgb-scroll-ready
+    .project-card:nth-child(3n + 2) {
+    transition-delay: 0.08s;
+  }
+
+  .projects-section
+    .projects-grid.rgb-scroll-ready
+    .project-card:nth-child(3n + 3) {
+    transition-delay: 0.16s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .projects-section .project-card {
+    animation: none !important;
+    opacity: 1 !important;
+    translate: none !important;
+  }
+}
+
+/* =========================================
+   CMS — Omslagafbeelding uploaden
+   ========================================= */
+
+.admin-cover-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid #3f3f46;
+}
+
+.admin-cover-uploader h2,
+.admin-cover-preview h3 {
+  margin: 0;
+}
+
+.admin-cover-uploader p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Bestand kiezen + bestandsnaam */
+
+.admin-cover-file-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Verberg de standaard browserknop,
+   maar behoud de werking via het label. */
+
+.admin-cover-uploader input[type="file"].admin-cover-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  max-width: none;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Eigen gestylde knop om een bestand te kiezen */
+
+.admin-cover-file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 20px;
+  border: 1px solid #565665;
+  border-radius: 10px;
+  background: #30303a;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.admin-cover-file-button:hover {
+  background: #41414d;
+  border-color: #777788;
+}
+
+.admin-cover-file-picker:focus-within .admin-cover-file-button {
+  outline: 2px solid #22c7df;
+  outline-offset: 3px;
+}
+
+.admin-cover-file-button.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-cover-file-name {
+  min-width: 0;
+  color: #a1a1aa;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+/* Uploadknop */
+
+.admin-cover-uploader .admin-cover-upload-button {
+  align-self: flex-start;
+  width: auto;
+  min-height: 44px;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #e84393, #22c7df);
+  color: #14141a;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-cover-uploader .admin-cover-upload-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Voorbeeld van de opgeslagen afbeelding */
+
+.admin-cover-preview {
+  margin-top: 16px;
+}
+
+.admin-cover-preview img {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  margin-top: 14px;
+  border: 1px solid #3f3f46;
+  border-radius: 14px;
+}

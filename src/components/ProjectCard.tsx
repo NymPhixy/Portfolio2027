@@ -14,22 +14,30 @@ export default function ProjectCard({ project }: ProjectCardProps) {
       >
         <img
           src={project.image}
-          alt={`Voorbeeldafbeelding van ${project.title}`}
+          alt={
+            project.imageIsPlaceholder
+              ? "RGB Visuals standaardafbeelding; projectfoto volgt"
+              : `Voorbeeldafbeelding van ${project.title}`
+          }
           className="project-card-image"
         />
 
         <div className="project-card-content">
-          <span className="project-year">{project.year}</span>
+          {project.year !== null && (
+            <span className="project-year">{project.year}</span>
+          )}
 
           <h3>{project.title}</h3>
 
           <p>{project.description}</p>
 
-          <div className="project-technologies">
-            {project.technologies.map((technology) => (
-              <span key={technology}>{technology}</span>
-            ))}
-          </div>
+          {project.technologies.length > 0 && (
+            <div className="project-technologies">
+              {project.technologies.map((technology) => (
+                <span key={technology}>{technology}</span>
+              ))}
+            </div>
+          )}
 
           <span className="project-card-cta">Bekijk casestudy →</span>
         </div>

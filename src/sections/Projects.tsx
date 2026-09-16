@@ -1,10 +1,60 @@
-import ProjectCard from "../components/ProjectCard";
-import { projects } from "../data/projects";
+import { useEffect, useRef } from "react";
 
-export default function Projects() {
+import ProjectCard from "../components/ProjectCard";
+import type { Project } from "../types/project";
+
+type ProjectsProps = {
+  projects: Project[];
+};
+
+export default function Projects({ projects }: ProjectsProps) {
+  const gridRef = useRef<HTMLDivElement>(null);
+
   const publishedProjects = projects.filter(
     (project) => project.status === "published",
   );
+
+  useEffect(() => {
+    const grid = gridRef.current;
+
+    if (!grid) return;
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (prefersReducedMotion || !("IntersectionObserver" in window)) {
+      return;
+    }
+
+    const cards = grid.querySelectorAll<HTMLElement>(".project-card");
+
+    if (cards.length === 0) return;
+
+    grid.classList.add("rgb-scroll-ready");
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+
+          entry.target.classList.add("rgb-in-view");
+          observer.unobserve(entry.target);
+        });
+      },
+      {
+        threshold: 0.12,
+        rootMargin: "0px 0px -35px 0px",
+      },
+    );
+
+    cards.forEach((card) => observer.observe(card));
+
+    return () => {
+      observer.disconnect();
+      grid.classList.remove("rgb-scroll-ready");
+    };
+  }, [projects]);
 
   return (
     <section id="projects" className="projects-section">
@@ -18,7 +68,7 @@ export default function Projects() {
           development.
         </p>
 
-        <div className="projects-grid">
+        <div ref={gridRef} className="projects-grid">
           {publishedProjects.map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
