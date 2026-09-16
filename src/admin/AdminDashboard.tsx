@@ -1,12 +1,11 @@
-
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
 
 import AdminSidebar from "./components/AdminSidebar";
 import type { AdminPage } from "./components/AdminSidebar";
 
 import AdminOverview from "./pages/AdminOverview";
 import ProjectEditor from "./pages/ProjectEditor";
+import StudioLogin from "./components/StudioLogin";
 
 type AdminUser = {
   id: number;
@@ -20,6 +19,8 @@ type AuthResponse = {
   error?: string;
 };
 
+type AuthStatus = "checking" | "logged-out" | "logged-in" | "error";
+
 const pageTitles: Record<AdminPage, string> = {
   overview: "Overzicht",
   projects: "Projecten",
@@ -29,104 +30,122 @@ const pageTitles: Record<AdminPage, string> = {
   settings: "Instellingen",
 };
 
+/**
+ * Vraagt de huidige PHP-sessie op.
+ * Geeft null terug als er geen ingelogde gebruiker is.
+ */
+async function requestSession(
+  signal?: AbortSignal,
+): Promise<AuthResponse | null> {
+  const response = await fetch("/api/auth/me", {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal,
+  });
+
+  if (response.status === 401) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error("Sessiecontrole mislukt");
+  }
+
+  const data: AuthResponse = await response.json();
+
+  return data;
+}
+
 export default function AdminDashboard() {
   const [activePage, setActivePage] = useState<AdminPage>("overview");
 
-  const [authStatus, setAuthStatus] = useState<
-    "checking" | "logged-out" | "logged-in" | "error"
-  >("checking");
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
 
   const [user, setUser] = useState<AdminUser | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  /**
+   * Controleer de sessie wanneer het CMS voor het eerst opent.
+   */
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
-    async function checkSession() {
+    async function loadInitialSession() {
       try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "same-origin",
-          cache: "no-store",
-        });
+        const data = await requestSession(controller.signal);
 
-        if (cancelled) return;
-
-        if (response.status === 401) {
-          setAuthStatus("logged-out");
+        if (controller.signal.aborted) {
           return;
         }
 
-        if (!response.ok) {
-          throw new Error("Sessiecontrole mislukt");
-        }
-
-        const data: AuthResponse = await response.json();
-
-        if (cancelled) return;
-
-        if (data.authenticated && data.user) {
+        if (data?.authenticated && data.user) {
           setUser(data.user);
           setAuthStatus("logged-in");
         } else {
+          setUser(null);
           setAuthStatus("logged-out");
         }
       } catch {
-        if (!cancelled) {
-          setAuthStatus("error");
-          setMessage("De verbinding met de server is mislukt.");
+        if (controller.signal.aborted) {
+          return;
         }
+
+        setUser(null);
+        setMessage("De verbinding met de server is mislukt.");
+        setAuthStatus("error");
       }
     }
 
-    void checkSession();
+    void loadInitialSession();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, []);
 
-  async function handleLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (isSubmitting) return;
-
-    setIsSubmitting(true);
-    setMessage("");
-
+  /**
+   * Controleer de sessie opnieuw na inloggen
+   * of na een klik op 'Opnieuw proberen'.
+   */
+  async function verifySession() {
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "same-origin",
-        body: JSON.stringify({ email, password }),
-      });
+      const data = await requestSession();
 
-      const data: AuthResponse = await response.json();
-
-      if (!response.ok || !data.authenticated || !data.user) {
-        setMessage(data.error ?? "Inloggen is mislukt.");
-        return;
+      if (data?.authenticated && data.user) {
+        setUser(data.user);
+        setAuthStatus("logged-in");
+      } else {
+        setUser(null);
+        setAuthStatus("logged-out");
       }
-
-      setUser(data.user);
-      setPassword("");
-      setAuthStatus("logged-in");
     } catch {
-      setMessage("Kan geen verbinding maken met de server.");
-    } finally {
-      setIsSubmitting(false);
+      setUser(null);
+      setMessage("De verbinding met de server is mislukt.");
+      setAuthStatus("error");
     }
   }
 
-  async function handleLogout() {
-    if (isSubmitting) return;
+  /**
+   * StudioLogin heeft de loginrequest uitgevoerd.
+   * Haal vervolgens de ingelogde gebruiker op.
+   */
+  function handleAuthenticated() {
+    setAuthStatus("checking");
+    setMessage("");
 
-    setIsSubmitting(true);
+    void verifySession();
+  }
+
+  /**
+   * Log uit via de bestaande PHP-route.
+   */
+  async function handleLogout() {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
     setMessage("");
 
     try {
@@ -140,87 +159,76 @@ export default function AdminDashboard() {
       }
 
       setUser(null);
-      setEmail("");
-      setPassword("");
       setActivePage("overview");
       setAuthStatus("logged-out");
     } catch {
       setMessage("Uitloggen is niet gelukt. Probeer het opnieuw.");
     } finally {
-      setIsSubmitting(false);
+      setIsLoggingOut(false);
     }
   }
 
+  /**
+   * Sessie wordt gecontroleerd.
+   */
   if (authStatus === "checking") {
     return (
-      <main className="cms-placeholder">
-        <p className="hero-label">RGB VISUALS CMS</p>
-        <h1>Sessie controleren...</h1>
+      <main className="studio-login">
+        <div className="studio-login__panel">
+          <div className="studio-login__card">
+            <p className="studio-login__eyebrow">RGB VISUALS CMS</p>
+
+            <h2>Een momentje.</h2>
+
+            <p className="studio-login__subtitle" role="status">
+              Je studiosessie wordt gecontroleerd...
+            </p>
+          </div>
+        </div>
       </main>
     );
   }
 
+  /**
+   * De API is niet bereikbaar of de sessiecontrole is mislukt.
+   */
   if (authStatus === "error") {
     return (
-      <main className="cms-placeholder">
-        <p className="hero-label">RGB VISUALS CMS</p>
-        <h1>Verbinding mislukt</h1>
-        <p role="alert">{message}</p>
-        <button type="button" onClick={() => window.location.reload()}>
-          Opnieuw proberen
-        </button>
+      <main className="studio-login">
+        <div className="studio-login__panel">
+          <div className="studio-login__card">
+            <p className="studio-login__eyebrow">RGB VISUALS CMS</p>
+
+            <h2>Verbinding mislukt.</h2>
+
+            <p className="studio-login__error" role="alert">
+              {message}
+            </p>
+
+            <button
+              type="button"
+              className="studio-login__submit"
+              onClick={handleAuthenticated}
+            >
+              <span>Opnieuw proberen</span>
+              <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </div>
       </main>
     );
   }
 
+  /**
+   * Nieuwe vormgegeven inlogomgeving.
+   */
   if (authStatus === "logged-out") {
-    return (
-      <main className="cms-placeholder">
-        <p className="hero-label">RGB VISUALS CMS</p>
-        <h1>Inloggen</h1>
-        <p>Log in om je dashboard te openen.</p>
-
-        <form
-          onSubmit={handleLogin}
-          style={{
-            display: "grid",
-            gap: "1rem",
-            maxWidth: "420px",
-            marginTop: "1.5rem",
-          }}
-        >
-          <label style={{ display: "grid", gap: "0.4rem" }}>
-            E-mailadres
-            <input
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </label>
-
-          <label style={{ display: "grid", gap: "0.4rem" }}>
-            Wachtwoord
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </label>
-
-          {message && <p role="alert">{message}</p>}
-
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Bezig met inloggen..." : "Inloggen"}
-          </button>
-        </form>
-      </main>
-    );
+    return <StudioLogin onAuthenticated={handleAuthenticated} />;
   }
 
+  /**
+   * Bestaande CMS-omgeving.
+   */
   return (
     <div className="cms-layout">
       <AdminSidebar activePage={activePage} onNavigate={setActivePage} />
@@ -240,9 +248,9 @@ export default function AdminDashboard() {
           <button
             type="button"
             onClick={() => void handleLogout()}
-            disabled={isSubmitting}
+            disabled={isLoggingOut}
           >
-            Uitloggen
+            {isLoggingOut ? "Uitloggen..." : "Uitloggen"}
           </button>
         </div>
 

@@ -1524,3 +1524,421 @@ nav > div a:hover {
   border: 1px solid #3f3f46;
   border-radius: 14px;
 }
+
+/* =========================================
+   RGB VISUALS — STUDIO LOGIN
+   ========================================= */
+
+.studio-login {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: #090911;
+  color: #f5f5f7;
+}
+
+.studio-login * {
+  box-sizing: border-box;
+}
+
+.studio-login__glow {
+  position: absolute;
+  z-index: -1;
+  width: 650px;
+  height: 650px;
+  border-radius: 50%;
+  filter: blur(110px);
+  pointer-events: none;
+  opacity: 0.2;
+}
+
+.studio-login__glow--pink {
+  top: -300px;
+  left: -250px;
+  background: #ec4899;
+}
+
+.studio-login__glow--cyan {
+  right: -280px;
+  bottom: -300px;
+  background: #22d3ee;
+}
+
+.studio-login__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.studio-login__intro {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  padding: clamp(32px, 5vw, 76px);
+}
+
+.studio-login__brand {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 14px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.studio-login__brand-mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #ff69b4, #22d3ee);
+  color: #090911;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+}
+
+.studio-login__brand-text strong,
+.studio-login__brand-text small {
+  display: block;
+}
+
+.studio-login__brand-text strong {
+  font-size: 18px;
+  letter-spacing: -0.04em;
+}
+
+.studio-login__brand-text small {
+  margin-top: 3px;
+  color: #9292a5;
+  font-size: 12px;
+}
+
+.studio-login__intro-content {
+  padding: 80px 0;
+}
+
+.studio-login__eyebrow,
+.studio-login__access-label {
+  color: #f39bc9;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.studio-login__intro h1 {
+  margin: 24px 0;
+  font-size: clamp(58px, 7vw, 108px);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.075em;
+}
+
+.studio-login__intro h1 span {
+  background: linear-gradient(100deg, #ff73c8, #a78bfa, #57d9f6);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.studio-login__intro-content > p {
+  max-width: 390px;
+  color: #a5a5b5;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.studio-login__decor {
+  display: flex;
+  gap: 8px;
+  margin-top: 40px;
+}
+
+.studio-login__decor span {
+  height: 4px;
+  border-radius: 999px;
+}
+
+.studio-login__decor span:nth-child(1) {
+  width: 48px;
+  background: #f472b6;
+}
+
+.studio-login__decor span:nth-child(2) {
+  width: 22px;
+  background: #a78bfa;
+}
+
+.studio-login__decor span:nth-child(3) {
+  width: 22px;
+  background: #22d3ee;
+}
+
+.studio-login__intro-footer {
+  color: #6f6f82;
+  font-size: 12px;
+}
+
+.studio-login__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  min-width: 0;
+  padding: 48px 28px;
+}
+
+.studio-login__card {
+  width: min(100%, 470px);
+  padding: clamp(28px, 4vw, 48px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 28px;
+  background: rgba(20, 20, 32, 0.88);
+  box-shadow:
+    0 32px 100px rgba(0, 0, 0, 0.3),
+    0 0 65px rgba(236, 72, 153, 0.04);
+  backdrop-filter: blur(24px);
+  animation: studioLoginEnter 0.65s ease both;
+}
+
+.studio-login__card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.studio-login__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(244, 114, 182, 0.25);
+  border-radius: 12px;
+  background: rgba(244, 114, 182, 0.1);
+  color: #f9a8d4;
+  font-size: 21px;
+}
+
+.studio-login__card h2 {
+  margin: 0 0 12px;
+  font-size: clamp(32px, 4vw, 42px);
+  letter-spacing: -0.055em;
+}
+
+.studio-login__subtitle {
+  margin: 0 0 36px;
+  color: #a5a5b5;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.studio-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.studio-login__field label {
+  display: block;
+  margin-bottom: 10px;
+  color: #dddde6;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.studio-login__field input {
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  padding: 15px 16px;
+  border: 1px solid #343443;
+  border-radius: 12px;
+  outline: none;
+  background: #0d0d17;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.studio-login__field input::placeholder {
+  color: #77778b;
+}
+
+.studio-login__field input:focus {
+  border-color: #da6cae;
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.14);
+}
+
+.studio-login__password {
+  position: relative;
+}
+
+.studio-login__password input {
+  padding-right: 95px;
+}
+
+.studio-login__password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #b5b5c7;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.studio-login__password-toggle:hover {
+  color: #fff;
+}
+
+.studio-login__error {
+  margin: 0;
+  padding: 13px 15px;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.18);
+  color: #fca5a5;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.studio-login__submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 56px;
+  padding: 16px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(105deg, #f472b6, #a78bfa, #22d3ee);
+  color: #10101a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
+}
+
+.studio-login__submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+}
+
+.studio-login__submit:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.studio-login__submit span:last-child {
+  font-size: 22px;
+}
+
+.studio-login__card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 30px;
+  padding-top: 22px;
+  border-top: 1px solid #30303c;
+  color: #88889c;
+  font-size: 12px;
+}
+
+.studio-login__status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22d3ee;
+}
+
+.studio-login__back {
+  color: #9c9caf;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.studio-login__back:hover {
+  color: #fff;
+}
+
+.studio-login__submit:focus-visible,
+.studio-login__password-toggle:focus-visible,
+.studio-login__back:focus-visible,
+.studio-login__brand:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 4px;
+}
+
+@keyframes studioLoginEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .studio-login__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-login__intro {
+    padding: 32px 24px 0;
+  }
+
+  .studio-login__intro-content,
+  .studio-login__intro-footer {
+    display: none;
+  }
+
+  .studio-login__panel {
+    padding: 40px 20px 64px;
+  }
+}
+
+@media (max-width: 480px) {
+  .studio-login__card {
+    padding: 28px 22px;
+    border-radius: 20px;
+  }
+
+  .studio-login__card h2 {
+    font-size: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-login__card {
+    animation: none;
+  }
+
+  .studio-login__submit,
+  .studio-login__field input {
+    transition: none;
+  }
+}

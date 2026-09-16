@@ -1,7 +1,10 @@
 
-FROM php:8.3-cli
+FROM php:8.3-cli-bookworm
 
-RUN docker-php-ext-install pdo_mysql
+RUN apt-get update \
+	&& apt-get upgrade -y \
+	&& docker-php-ext-install pdo_mysql \
+	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
