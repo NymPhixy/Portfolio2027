@@ -23,4 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+/.env
+/backend/config/*.local.php
+/backend/storage/covers/
+
 /backend/config/database.local.php

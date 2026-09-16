@@ -14,9 +14,23 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 |--------------------------------------------------------------------------
 */
 
+
 function database(): PDO
 {
-    $config = require __DIR__ . '/../config/database.local.php';
+    $dockerHost = getenv('DB_HOST');
+
+    if ($dockerHost !== false && $dockerHost !== '') {
+        $config = [
+            'host' => $dockerHost,
+            'port' => (int) (getenv('DB_PORT') ?: 3306),
+            'database' => getenv('DB_NAME') ?: '',
+            'username' => getenv('DB_USER') ?: '',
+            'password' => getenv('DB_PASSWORD') ?: '',
+        ];
+    } else {
+        // Bestaande Laragon-configuratie blijft werken.
+        $config = require __DIR__ . '/../config/database.local.php';
+    }
 
     return new PDO(
         sprintf(

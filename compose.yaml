@@ -1,0 +1,79 @@
+services:
+  db:
+    image: mysql:8.4
+    ports:
+      - "127.0.0.1:3307:3306"
+    environment:
+      MYSQL_DATABASE: rgb_visuals
+      MYSQL_USER: rgb_visuals_app
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Vul DB_PASSWORD in}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Vul DB_ROOT_PASSWORD in}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - MYSQL_PWD="$${MYSQL_PASSWORD}" mysql -h 127.0.0.1 -u "$${MYSQL_USER}" "$${MYSQL_DATABASE}" -e "SELECT 1" > /dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  seed:
+    build:
+      context: ./backend
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: rgb_visuals
+      DB_USER: rgb_visuals_app
+      DB_PASSWORD: ${DB_PASSWORD:?Vul DB_PASSWORD in}
+      ADMIN_NAME: ${ADMIN_NAME:?Vul ADMIN_NAME in}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Vul ADMIN_EMAIL in}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Vul ADMIN_PASSWORD in}
+    command: ["php", "scripts/seed-admin.php"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    ports:
+      - "127.0.0.1:8081:8000"
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: rgb_visuals
+      DB_USER: rgb_visuals_app
+      DB_PASSWORD: ${DB_PASSWORD:?Vul DB_PASSWORD in}
+      RGB_SETUP_ENABLED: "0"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - web_node_modules:/app/node_modules
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      DOCKER_API_URL: http://api:8000
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - api
+
+volumes:
+  mysql_data:
+  web_node_modules:
