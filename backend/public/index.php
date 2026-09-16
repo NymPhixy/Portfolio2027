@@ -246,7 +246,7 @@ if ($path === '/api/auth/login' && $method === 'POST') {
                AND is_active = 1
              LIMIT 1'
         );
-
+        
         $statement->execute([
             'email' => $email,
         ]);
@@ -278,7 +278,6 @@ if ($path === '/api/auth/login' && $method === 'POST') {
         error_log(
             'RGB Visuals loginfout: ' . $exception->getMessage()
         );
-
         jsonResponse([
             'error' => 'Inloggen is tijdelijk niet mogelijk',
         ], 500);
@@ -1233,6 +1232,234 @@ if (
             'error' => 'Afbeelding kon niet worden opgehaald',
         ], 500);
     }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Setup: eerste CMS-beheerder aanmaken
+|--------------------------------------------------------------------------
+|
+| POST /api/setup/admin
+|
+| Deze route:
+| - staat standaard uit;
+| - vereist een geheim setup-token;
+| - werkt alleen als admin_users nog leeg is;
+| - slaat het wachtwoord gehasht op.
+|
+*/
+
+if ($path === '/api/setup/admin' && $method === 'POST') {
+    // Docker: gebruik omgevingsvariabelen.
+    // Laragon: gebruik eventueel een lokaal configuratiebestand.
+    $localSetupFile = __DIR__ . '/../config/setup.local.php';
+
+    $localSetup = is_file($localSetupFile)
+        ? require $localSetupFile
+        : [];
+
+    $setupEnabled =
+        getenv('RGB_SETUP_ENABLED') === '1'
+        || ($localSetup['enabled'] ?? false) === true;
+
+    if (!$setupEnabled) {
+        jsonResponse([
+            'error' => 'Setup is uitgeschakeld',
+        ], 404);
+    }
+
+    $setupToken = getenv('RGB_SETUP_TOKEN');
+
+    if (!is_string($setupToken) || $setupToken === '') {
+        $setupToken = $localSetup['token'] ?? '';
+    }
+
+    $providedToken = $_SERVER['HTTP_X_SETUP_TOKEN'] ?? '';
+
+    if (
+        !is_string($setupToken)
+        || strlen($setupToken) < 32
+        || !is_string($providedToken)
+        || !hash_equals($setupToken, $providedToken)
+    ) {
+        jsonResponse([
+            'error' => 'Geen toegang',
+        ], 403);
+    }
+
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+
+    if (!preg_match('~^application/json(?:\s*;|$)~i', $contentType)) {
+        jsonResponse([
+            'error' => 'Gebruik application/json',
+        ], 415);
+    }
+
+    $rawBody = file_get_contents('php://input');
+
+    if (
+        $rawBody === false
+        || strlen($rawBody) > 8192
+    ) {
+        jsonResponse([
+            'error' => 'Ongeldige aanvraaggrootte',
+        ], 413);
+    }
+
+    $input = json_decode($rawBody, true);
+
+    if (
+        !is_array($input)
+        || array_is_list($input)
+    ) {
+        jsonResponse([
+            'error' => 'Ongeldige JSON',
+        ], 400);
+    }
+
+    $name = $input['name'] ?? null;
+    $email = $input['email'] ?? null;
+    $password = $input['password'] ?? null;
+
+    if (
+        !is_string($name)
+        || !is_string($email)
+        || !is_string($password)
+    ) {
+        jsonResponse([
+            'error' => 'Naam, e-mailadres en wachtwoord zijn verplicht',
+        ], 422);
+    }
+
+    $name = trim($name);
+    $email = trim($email);
+
+    if (
+        $name === ''
+        || strlen($name) > 150
+        || !filter_var($email, FILTER_VALIDATE_EMAIL)
+        || strlen($email) > 190
+        || strlen($password) < 12
+        || strlen($password) > 128
+    ) {
+        jsonResponse([
+            'error' => 'Controleer de naam, het e-mailadres en het wachtwoord (minimaal 12 tekens)',
+        ], 422);
+    }
+
+    $pdo = null;
+    $lockHeld = false;
+
+    $response = [
+        'error' => 'Beheerder kon niet worden aangemaakt',
+    ];
+
+    $responseStatus = 500;
+
+    try {
+        $pdo = database();
+
+        // Voorkom dat twee gelijktijdige setup-aanvragen
+        // allebei de eerste beheerder aanmaken.
+        $lockStatement = $pdo->query(
+            "SELECT GET_LOCK('rgb_visuals_first_admin_setup', 5)"
+        );
+
+        $lockHeld = (int) $lockStatement->fetchColumn() === 1;
+
+        if (!$lockHeld) {
+            $response = [
+                'error' => 'Setup is tijdelijk bezet. Probeer opnieuw.',
+            ];
+
+            $responseStatus = 503;
+        } else {
+            // Ook inactieve accounts tellen mee.
+            // Setup mag uitsluitend op een volledig lege tabel.
+            $existingStatement = $pdo->query(
+                'SELECT COUNT(*) FROM admin_users'
+            );
+
+            $adminCount = (int) $existingStatement->fetchColumn();
+
+            if ($adminCount > 0) {
+                $response = [
+                    'error' => 'Setup is niet beschikbaar: er bestaat al een beheerder',
+                ];
+
+                $responseStatus = 409;
+            } else {
+                $passwordHash = password_hash(
+                    $password,
+                    PASSWORD_DEFAULT
+                );
+
+                $insertStatement = $pdo->prepare(
+                    'INSERT INTO admin_users
+                        (
+                            name,
+                            email,
+                            password_hash,
+                            is_active,
+                            created_at
+                        )
+                     VALUES
+                        (
+                            :name,
+                            :email,
+                            :password_hash,
+                            1,
+                            NOW()
+                        )'
+                );
+
+                $insertStatement->execute([
+                    'name' => $name,
+                    'email' => $email,
+                    'password_hash' => $passwordHash,
+                ]);
+
+                $adminId = (int) $pdo->lastInsertId();
+
+                $response = [
+                    'message' => 'Eerste beheerder aangemaakt. Schakel setup nu uit.',
+                    'user' => [
+                        'id' => $adminId,
+                        'name' => $name,
+                        'email' => $email,
+                    ],
+                ];
+
+                $responseStatus = 201;
+            }
+        }
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals setupfout: ' . $exception->getMessage()
+        );
+
+        $response = [
+            'error' => 'Beheerder kon niet worden aangemaakt',
+        ];
+
+        $responseStatus = 500;
+    } finally {
+        if ($lockHeld && $pdo instanceof PDO) {
+            try {
+                $pdo->query(
+                    "SELECT RELEASE_LOCK('rgb_visuals_first_admin_setup')"
+                );
+            } catch (Throwable $exception) {
+                error_log(
+                    'RGB Visuals setup-lock vrijgeven mislukt: '
+                    . $exception->getMessage()
+                );
+            }
+        }
+    }
+
+    jsonResponse($response, $responseStatus);
 }
 
 jsonResponse([
