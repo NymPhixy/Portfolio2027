@@ -5,10 +5,11 @@ import Hero from "./sections/Hero";
 import Projects from "./sections/Projects";
 import ProjectDetail from "./sections/ProjectDetail";
 import AdminDashboard from "./admin/AdminDashboard";
-
+import About from "./sections/About";
 import { projects as localProjects } from "./data/projects";
 import type { Project } from "./types/project";
 import heroImg from "./assets/hero.png";
+import Contact from "./sections/Contact";
 
 import "./App.css";
 
@@ -199,8 +200,9 @@ function App() {
 
       <main>
         <Hero />
-
         <Projects projects={allProjects} />
+        <About />
+        <Contact />
       </main>
     </>
   );
