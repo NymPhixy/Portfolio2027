@@ -56,3 +56,44 @@ CREATE TABLE IF NOT EXISTS project_images (
         REFERENCES projects(id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Externe documenten en projectlinks
+CREATE TABLE IF NOT EXISTS project_links (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    project_id INT UNSIGNED NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    url VARCHAR(2048) NOT NULL,
+    type ENUM('document', 'website', 'prototype', 'other') NOT NULL DEFAULT 'other',
+    sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    KEY idx_project_links_order (project_id, sort_order, id),
+
+    CONSTRAINT fk_project_links_project
+        FOREIGN KEY (project_id)
+        REFERENCES projects(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- PDF-documenten per project
+CREATE TABLE IF NOT EXISTS project_documents (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    project_id INT UNSIGNED NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_project_documents_filename (filename),
+    KEY idx_project_documents_order (project_id, sort_order, id),
+
+    CONSTRAINT fk_project_documents_project
+        FOREIGN KEY (project_id)
+        REFERENCES projects(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

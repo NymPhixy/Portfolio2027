@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
-import type { Project } from "../types/project";
-import type { ProjectGalleryItem } from "../types/project";
+import type {
+  Project,
+  ProjectDocumentItem,
+  ProjectGalleryItem,
+  ProjectLinkItem,
+  ProjectLinkType,
+} from "../types/project";
 
 type ProjectDetailProps = {
   project: Project;
@@ -12,6 +17,28 @@ type PublicGalleryResponse = {
     alt_text: string | null;
   }>;
   error?: string;
+};
+
+type PublicLinksResponse = {
+  links?: ProjectLinkItem[];
+  error?: string;
+};
+
+type PublicDocumentsResponse = {
+  documents?: Array<{
+    id: number;
+    title: string;
+    original_name: string;
+    download_url: string;
+  }>;
+  error?: string;
+};
+
+const linkTypeLabels: Record<ProjectLinkType, string> = {
+  document: "Document",
+  website: "Website",
+  prototype: "Prototype",
+  other: "Overig",
 };
 
 function galleryImageDetails(image: ProjectGalleryItem): {
@@ -37,6 +64,18 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     project.cmsProjectId !== undefined,
   );
   const [galleryError, setGalleryError] = useState("");
+  const [links, setLinks] = useState<ProjectLinkItem[]>(project.links);
+  const [linksLoading, setLinksLoading] = useState(
+    project.cmsProjectId !== undefined,
+  );
+  const [linksError, setLinksError] = useState("");
+  const [documents, setDocuments] = useState<ProjectDocumentItem[]>(
+    project.documents,
+  );
+  const [documentsLoading, setDocumentsLoading] = useState(
+    project.cmsProjectId !== undefined,
+  );
+  const [documentsError, setDocumentsError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -84,7 +123,84 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
       }
     }
 
+    async function loadLinks() {
+      try {
+        const response = await fetch(
+          `/api/projects/${project.cmsProjectId}/links`,
+          {
+            signal: controller.signal,
+            credentials: "same-origin",
+            cache: "no-store",
+          },
+        );
+        const data: PublicLinksResponse = await response.json();
+
+        if (!response.ok || !Array.isArray(data.links)) {
+          throw new Error(
+            data.error ?? "Projectlinks konden niet worden geladen.",
+          );
+        }
+
+        if (!controller.signal.aborted) {
+          setLinks(data.links);
+          setLinksLoading(false);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setLinksError(
+            error instanceof Error
+              ? error.message
+              : "Projectlinks konden niet worden geladen.",
+          );
+          setLinksLoading(false);
+        }
+      }
+    }
+
+    async function loadDocuments() {
+      try {
+        const response = await fetch(
+          `/api/projects/${project.cmsProjectId}/documents`,
+          {
+            signal: controller.signal,
+            credentials: "same-origin",
+            cache: "no-store",
+          },
+        );
+        const data: PublicDocumentsResponse = await response.json();
+
+        if (!response.ok || !Array.isArray(data.documents)) {
+          throw new Error(
+            data.error ?? "PDF-documenten konden niet worden geladen.",
+          );
+        }
+
+        if (!controller.signal.aborted) {
+          setDocuments(
+            data.documents.map((document) => ({
+              id: document.id,
+              title: document.title,
+              originalName: document.original_name,
+              downloadUrl: document.download_url,
+            })),
+          );
+          setDocumentsLoading(false);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setDocumentsError(
+            error instanceof Error
+              ? error.message
+              : "PDF-documenten konden niet worden geladen.",
+          );
+          setDocumentsLoading(false);
+        }
+      }
+    }
+
     void loadGallery();
+    void loadLinks();
+    void loadDocuments();
 
     return () => controller.abort();
   }, [project.cmsProjectId]);
@@ -98,6 +214,10 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     Boolean(project.challenge) ||
     Boolean(project.solution) ||
     Boolean(project.result);
+
+  const hasVisibleLinks = !linksLoading && !linksError && links.length > 0;
+  const hasVisibleDocuments =
+    !documentsLoading && !documentsError && documents.length > 0;
 
   return (
     <section className="project-detail">
@@ -211,6 +331,80 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
                   />
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {linksLoading && (
+          <p className="project-detail-intro" role="status">
+            Projectlinks laden...
+          </p>
+        )}
+
+        {linksError && (
+          <p className="project-detail-intro" role="alert">
+            {linksError}
+          </p>
+        )}
+
+        {documentsLoading && (
+          <p className="project-detail-intro" role="status">
+            PDF-documenten laden...
+          </p>
+        )}
+
+        {documentsError && (
+          <p className="project-detail-intro" role="alert">
+            {documentsError}
+          </p>
+        )}
+
+        {(hasVisibleLinks || hasVisibleDocuments) && (
+          <div className="project-detail-links">
+            <h2>Bekijk het project</h2>
+
+            <div className="project-links-list">
+              {hasVisibleLinks &&
+                links.map((link) => (
+                  <a
+                    className="project-link-item"
+                    href={link.url}
+                    key={`${link.url}-${link.title}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span className="project-link-item-content">
+                      <strong>{link.title}</strong>
+                      <small>{linkTypeLabels[link.type]} · Externe link</small>
+                    </span>
+                    <span
+                      className="project-link-item-external"
+                      aria-hidden="true"
+                    >
+                      Extern openen ↗
+                    </span>
+                  </a>
+                ))}
+
+              {hasVisibleDocuments &&
+                documents.map((document) => (
+                  <a
+                    className="project-link-item project-document-item"
+                    href={document.downloadUrl}
+                    key={`document-${document.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                  >
+                    <span className="project-link-item-content">
+                      <strong>{document.title}</strong>
+                      <small>PDF · Opgeslagen op RGB Visuals</small>
+                    </span>
+                    <span className="project-link-item-external">
+                      PDF downloaden ↓
+                    </span>
+                  </a>
+                ))}
             </div>
           </div>
         )}

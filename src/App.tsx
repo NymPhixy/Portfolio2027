@@ -93,6 +93,8 @@ function convertApiProject(project: ApiProject): Project {
     result: project.result ?? "",
 
     gallery: [],
+    links: [],
+    documents: [],
   };
 }
 

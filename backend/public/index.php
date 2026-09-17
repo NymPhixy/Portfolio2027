@@ -164,6 +164,83 @@ function imageFileDetails(string $temporaryPath, int $fileSize): array
     ];
 }
 
+function pdfFileDetails(string $temporaryPath, int $fileSize): void
+{
+    if (
+        $fileSize <= 0
+        || $fileSize > 10 * 1024 * 1024
+        || !is_uploaded_file($temporaryPath)
+    ) {
+        jsonResponse([
+            'error' => 'Ongeldig bestand of bestand groter dan 10 MB',
+        ], 422);
+    }
+
+    $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $fileInfo->file($temporaryPath);
+    $header = file_get_contents($temporaryPath, false, null, 0, 5);
+
+    if ($mimeType !== 'application/pdf' || $header !== '%PDF-') {
+        jsonResponse([
+            'error' => 'Upload uitsluitend een geldig PDF-bestand',
+        ], 422);
+    }
+}
+
+function safeOriginalPdfName(mixed $value): string
+{
+    $name = is_string($value) ? basename($value) : 'document.pdf';
+    $name = trim($name);
+    $name = preg_replace('/[\x00-\x1F\x7F]/', '', $name) ?? '';
+
+    if ($name === '') {
+        $name = 'document.pdf';
+    }
+
+    return substr($name, 0, 255);
+}
+
+function projectDocumentInput(array $input, bool $partial = false): array
+{
+    $fields = [];
+
+    if (!$partial || array_key_exists('title', $input)) {
+        if (!is_string($input['title'] ?? null)) {
+            jsonResponse([
+                'error' => 'Een documenttitel is verplicht',
+            ], 422);
+        }
+
+        $title = trim($input['title']);
+
+        if ($title === '' || strlen($title) > 150) {
+            jsonResponse([
+                'error' => 'De documenttitel is ongeldig of te lang',
+            ], 422);
+        }
+
+        $fields['title'] = $title;
+    }
+
+    if (array_key_exists('sort_order', $input)) {
+        $sortOrder = $input['sort_order'];
+
+        if (
+            (!is_int($sortOrder) && !is_string($sortOrder))
+            || (is_string($sortOrder) && !preg_match('/^\d+$/', $sortOrder))
+            || (int) $sortOrder > 1000000
+        ) {
+            jsonResponse([
+                'error' => 'Ongeldige documentvolgorde',
+            ], 422);
+        }
+
+        $fields['sort_order'] = (int) $sortOrder;
+    }
+
+    return $fields;
+}
+
 require __DIR__ . '/../routes/contact.php';
 
 /**
@@ -245,6 +322,116 @@ function caseStudyInput(array $input): array
     );
 
     return $fields;
+}
+
+function validProjectLinkUrl(string $url): bool
+{
+    if (strlen($url) > 2048 || filter_var($url, FILTER_VALIDATE_URL) === false) {
+        return false;
+    }
+
+    $parts = parse_url($url);
+
+    return is_array($parts)
+        && strtolower($parts['scheme'] ?? '') === 'https'
+        && is_string($parts['host'] ?? null)
+        && $parts['host'] !== ''
+        && !isset($parts['user'], $parts['pass']);
+}
+
+function projectLinkInput(array $input, bool $partial = false): array
+{
+    $fields = [];
+
+    if (!$partial || array_key_exists('title', $input)) {
+        if (!is_string($input['title'] ?? null)) {
+            jsonResponse([
+                'error' => 'Een linktitel is verplicht',
+            ], 422);
+        }
+
+        $title = trim($input['title']);
+
+        if ($title === '' || strlen($title) > 150) {
+            jsonResponse([
+                'error' => 'De linktitel is ongeldig of te lang',
+            ], 422);
+        }
+
+        $fields['title'] = $title;
+    }
+
+    if (!$partial || array_key_exists('url', $input)) {
+        if (!is_string($input['url'] ?? null)) {
+            jsonResponse([
+                'error' => 'Een HTTPS-URL is verplicht',
+            ], 422);
+        }
+
+        $url = trim($input['url']);
+
+        if (!validProjectLinkUrl($url)) {
+            jsonResponse([
+                'error' => 'Gebruik een geldige HTTPS-URL',
+            ], 422);
+        }
+
+        $fields['url'] = $url;
+    }
+
+    if (!$partial || array_key_exists('type', $input)) {
+        if (
+            !is_string($input['type'] ?? null)
+            || !in_array(
+                $input['type'],
+                ['document', 'website', 'prototype', 'other'],
+                true
+            )
+        ) {
+            jsonResponse([
+                'error' => 'Ongeldig linktype',
+            ], 422);
+        }
+
+        $fields['type'] = $input['type'];
+    }
+
+    if (array_key_exists('sort_order', $input)) {
+        $sortOrder = $input['sort_order'];
+
+        if (
+            (!is_int($sortOrder) && !is_string($sortOrder))
+            || (is_string($sortOrder) && !preg_match('/^\d+$/', $sortOrder))
+            || (int) $sortOrder > 1000000
+        ) {
+            jsonResponse([
+                'error' => 'Ongeldige linkvolgorde',
+            ], 422);
+        }
+
+        $fields['sort_order'] = (int) $sortOrder;
+    }
+
+    return $fields;
+}
+
+function requireProject(PDO $pdo, int $projectId): void
+{
+    $statement = $pdo->prepare(
+        'SELECT id
+         FROM projects
+         WHERE id = :id
+         LIMIT 1'
+    );
+    $statement->execute([
+        'id' => $projectId,
+    ]);
+
+    if (!$statement->fetch()) {
+        jsonResponse([
+            'error' => 'Project niet gevonden',
+        ], 404);
+    }
 }
 
 /*
@@ -456,6 +643,226 @@ if (
 
         jsonResponse([
             'error' => 'Afbeelding kon niet worden opgehaald',
+        ], 404);
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Openbare API: links van een gepubliceerd project
+|--------------------------------------------------------------------------
+*/
+
+if (
+    preg_match(
+        '~^/api/projects/([1-9][0-9]*)/links$~',
+        $path,
+        $matches
+    )
+    && $method === 'GET'
+) {
+    try {
+        $statement = database()->prepare(
+            'SELECT
+                project_links.id,
+                project_links.title,
+                project_links.url,
+                project_links.type,
+                project_links.sort_order
+             FROM project_links
+             INNER JOIN projects
+                ON projects.id = project_links.project_id
+             WHERE project_links.project_id = :project_id
+               AND projects.status = :status
+             ORDER BY project_links.sort_order ASC, project_links.id ASC'
+        );
+
+        $statement->execute([
+            'project_id' => (int) $matches[1],
+            'status' => 'published',
+        ]);
+
+        $links = array_map(
+            static function (array $link): array {
+                $link['id'] = (int) $link['id'];
+                $link['sort_order'] = (int) $link['sort_order'];
+
+                return $link;
+            },
+            $statement->fetchAll()
+        );
+
+        jsonResponse([
+            'links' => $links,
+        ]);
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals openbare projectlinks ophalen mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Projectlinks konden niet worden opgehaald',
+        ], 500);
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Openbare API: documenten van een gepubliceerd project
+|--------------------------------------------------------------------------
+*/
+
+if (
+    preg_match(
+        '~^/api/projects/([1-9][0-9]*)/documents$~',
+        $path,
+        $matches
+    )
+    && $method === 'GET'
+) {
+    try {
+        $projectId = (int) $matches[1];
+        $statement = database()->prepare(
+            'SELECT
+                project_documents.id,
+                project_documents.title,
+                project_documents.original_name,
+                project_documents.sort_order
+             FROM project_documents
+             INNER JOIN projects
+                ON projects.id = project_documents.project_id
+             WHERE project_documents.project_id = :project_id
+               AND projects.status = :status
+             ORDER BY project_documents.sort_order ASC, project_documents.id ASC'
+        );
+        $statement->execute([
+            'project_id' => $projectId,
+            'status' => 'published',
+        ]);
+
+        $documents = array_map(
+            static function (array $document) use ($projectId): array {
+                $documentId = (int) $document['id'];
+
+                return [
+                    'id' => $documentId,
+                    'title' => $document['title'],
+                    'original_name' => $document['original_name'],
+                    'sort_order' => (int) $document['sort_order'],
+                    'download_url' => sprintf(
+                        '/api/projects/%d/documents/%d/download',
+                        $projectId,
+                        $documentId
+                    ),
+                ];
+            },
+            $statement->fetchAll()
+        );
+
+        jsonResponse([
+            'documents' => $documents,
+        ]);
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals openbare documenten ophalen mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Documenten konden niet worden opgehaald',
+        ], 500);
+    }
+}
+
+if (
+    preg_match(
+        '~^/api/projects/([1-9][0-9]*)/documents/([1-9][0-9]*)/download$~',
+        $path,
+        $matches
+    )
+    && $method === 'GET'
+) {
+    try {
+        $statement = database()->prepare(
+            'SELECT
+                project_documents.filename,
+                project_documents.original_name
+             FROM project_documents
+             INNER JOIN projects
+                ON projects.id = project_documents.project_id
+             WHERE project_documents.project_id = :project_id
+               AND project_documents.id = :document_id
+               AND projects.status = :status
+             LIMIT 1'
+        );
+        $statement->execute([
+            'project_id' => (int) $matches[1],
+            'document_id' => (int) $matches[2],
+            'status' => 'published',
+        ]);
+
+        $document = $statement->fetch();
+
+        if (
+            !$document
+            || !is_string($document['filename'])
+            || !is_string($document['original_name'])
+        ) {
+            jsonResponse([
+                'error' => 'Document niet gevonden',
+            ], 404);
+        }
+
+        if (!preg_match('/\A[a-f0-9]{40}\.pdf\z/', $document['filename'])) {
+            jsonResponse([
+                'error' => 'Document niet gevonden',
+            ], 404);
+        }
+
+        $filePath = __DIR__ . '/../storage/documents/' . $document['filename'];
+
+        if (!is_file($filePath) || !is_readable($filePath)) {
+            jsonResponse([
+                'error' => 'Document niet gevonden',
+            ], 404);
+        }
+
+        $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+
+        if (
+            $fileInfo->file($filePath) !== 'application/pdf'
+            || file_get_contents($filePath, false, null, 0, 5) !== '%PDF-'
+        ) {
+            jsonResponse([
+                'error' => 'Document niet gevonden',
+            ], 404);
+        }
+
+        $safeName = safeOriginalPdfName($document['original_name']);
+        $asciiName = preg_replace('/[^A-Za-z0-9._-]/', '_', $safeName) ?? 'document.pdf';
+        $encodedName = rawurlencode($safeName);
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . $encodedName);
+        header('X-Content-Type-Options: nosniff');
+
+        $fileSize = filesize($filePath);
+
+        if ($fileSize !== false) {
+            header('Content-Length: ' . $fileSize);
+        }
+
+        readfile($filePath);
+        exit;
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals openbaar document downloaden mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Document kon niet worden gedownload',
         ], 404);
     }
 }
@@ -1582,6 +1989,512 @@ if (
     }
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| CMS: projectlinks beheren
+|--------------------------------------------------------------------------
+*/
+
+if (
+    preg_match(
+        '~^/api/admin/projects/([1-9][0-9]*)/links$~',
+        $path,
+        $matches
+    )
+    && in_array($method, ['GET', 'POST'], true)
+) {
+    require __DIR__ . '/../config/session.php';
+    enforceAdminOrigin();
+
+    $projectId = (int) $matches[1];
+
+    try {
+        $pdo = database();
+        enforceAdminAccess($pdo);
+        requireProject($pdo, $projectId);
+
+        if ($method === 'GET') {
+            $statement = $pdo->prepare(
+                'SELECT id, project_id, title, url, type, sort_order, created_at
+                 FROM project_links
+                 WHERE project_id = :project_id
+                 ORDER BY sort_order ASC, id ASC'
+            );
+            $statement->execute([
+                'project_id' => $projectId,
+            ]);
+
+            $links = array_map(
+                static function (array $link): array {
+                    $link['id'] = (int) $link['id'];
+                    $link['project_id'] = (int) $link['project_id'];
+                    $link['sort_order'] = (int) $link['sort_order'];
+
+                    return $link;
+                },
+                $statement->fetchAll()
+            );
+
+            jsonResponse([
+                'links' => $links,
+            ]);
+        }
+
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+
+        if (!preg_match('~^application/json(?:\s*;|$)~i', $contentType)) {
+            jsonResponse([
+                'error' => 'Gebruik application/json',
+            ], 415);
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+
+        if (!is_array($input) || array_is_list($input)) {
+            jsonResponse([
+                'error' => 'Ongeldige linkgegevens',
+            ], 422);
+        }
+
+        $fields = projectLinkInput($input);
+
+        if (!array_key_exists('sort_order', $fields)) {
+            $orderStatement = $pdo->prepare(
+                'SELECT COALESCE(MAX(sort_order), -1) + 1
+                 FROM project_links
+                 WHERE project_id = :project_id'
+            );
+            $orderStatement->execute([
+                'project_id' => $projectId,
+            ]);
+            $fields['sort_order'] = (int) $orderStatement->fetchColumn();
+        }
+
+        $statement = $pdo->prepare(
+            'INSERT INTO project_links
+                (project_id, title, url, type, sort_order)
+             VALUES
+                (:project_id, :title, :url, :type, :sort_order)'
+        );
+        $statement->execute([
+            'project_id' => $projectId,
+            ...$fields,
+        ]);
+
+        jsonResponse([
+            'message' => 'Projectlink opgeslagen',
+            'link' => [
+                'id' => (int) $pdo->lastInsertId(),
+                'project_id' => $projectId,
+                ...$fields,
+            ],
+        ], 201);
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals projectlink opslaan mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Projectlink kon niet worden opgeslagen',
+        ], 500);
+    }
+}
+
+if (
+    preg_match(
+        '~^/api/admin/projects/([1-9][0-9]*)/links/([1-9][0-9]*)$~',
+        $path,
+        $matches
+    )
+    && in_array($method, ['PATCH', 'DELETE'], true)
+) {
+    require __DIR__ . '/../config/session.php';
+    enforceAdminOrigin();
+
+    $projectId = (int) $matches[1];
+    $linkId = (int) $matches[2];
+
+    try {
+        $pdo = database();
+        enforceAdminAccess($pdo);
+        requireProject($pdo, $projectId);
+
+        $linkStatement = $pdo->prepare(
+            'SELECT id
+             FROM project_links
+             WHERE id = :link_id
+               AND project_id = :project_id
+             LIMIT 1'
+        );
+        $linkStatement->execute([
+            'link_id' => $linkId,
+            'project_id' => $projectId,
+        ]);
+
+        if (!$linkStatement->fetch()) {
+            jsonResponse([
+                'error' => 'Projectlink niet gevonden',
+            ], 404);
+        }
+
+        if ($method === 'PATCH') {
+            $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+
+            if (!preg_match('~^application/json(?:\s*;|$)~i', $contentType)) {
+                jsonResponse([
+                    'error' => 'Gebruik application/json',
+                ], 415);
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            if (!is_array($input) || array_is_list($input)) {
+                jsonResponse([
+                    'error' => 'Ongeldige linkgegevens',
+                ], 422);
+            }
+
+            $fields = projectLinkInput($input, true);
+
+            if ($fields === []) {
+                jsonResponse([
+                    'error' => 'Geen wijziging opgegeven',
+                ], 422);
+            }
+
+            $updates = [];
+            $parameters = [
+                'link_id' => $linkId,
+                'project_id' => $projectId,
+            ];
+
+            foreach (['title', 'url', 'type', 'sort_order'] as $field) {
+                if (array_key_exists($field, $fields)) {
+                    $updates[] = $field . ' = :' . $field;
+                    $parameters[$field] = $fields[$field];
+                }
+            }
+
+            $statement = $pdo->prepare(
+                'UPDATE project_links
+                 SET ' . implode(', ', $updates) . '
+                 WHERE id = :link_id
+                   AND project_id = :project_id'
+            );
+            $statement->execute($parameters);
+
+            jsonResponse([
+                'message' => 'Projectlink bijgewerkt',
+            ]);
+        }
+
+        $statement = $pdo->prepare(
+            'DELETE FROM project_links
+             WHERE id = :link_id
+               AND project_id = :project_id'
+        );
+        $statement->execute([
+            'link_id' => $linkId,
+            'project_id' => $projectId,
+        ]);
+
+        jsonResponse([
+            'message' => 'Projectlink verwijderd',
+        ]);
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals projectlink wijzigen mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Projectlink kon niet worden gewijzigd',
+        ], 500);
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| CMS: projectdocumenten beheren
+|--------------------------------------------------------------------------
+*/
+
+if (
+    preg_match(
+        '~^/api/admin/projects/([1-9][0-9]*)/documents$~',
+        $path,
+        $matches
+    )
+    && in_array($method, ['GET', 'POST'], true)
+) {
+    require __DIR__ . '/../config/session.php';
+    enforceAdminOrigin();
+
+    $projectId = (int) $matches[1];
+    $newFilePath = null;
+
+    try {
+        $pdo = database();
+        enforceAdminAccess($pdo);
+        requireProject($pdo, $projectId);
+
+        if ($method === 'GET') {
+            $statement = $pdo->prepare(
+                'SELECT id, project_id, title, original_name, sort_order, created_at
+                 FROM project_documents
+                 WHERE project_id = :project_id
+                 ORDER BY sort_order ASC, id ASC'
+            );
+            $statement->execute([
+                'project_id' => $projectId,
+            ]);
+
+            $documents = array_map(
+                static function (array $document): array {
+                    $document['id'] = (int) $document['id'];
+                    $document['project_id'] = (int) $document['project_id'];
+                    $document['sort_order'] = (int) $document['sort_order'];
+
+                    return $document;
+                },
+                $statement->fetchAll()
+            );
+
+            jsonResponse([
+                'documents' => $documents,
+            ]);
+        }
+
+        if (($_SERVER['HTTP_X_RGB_UPLOAD'] ?? '') !== '1') {
+            jsonResponse([
+                'error' => 'Ongeldige uploadaanvraag',
+            ], 403);
+        }
+
+        if (
+            !isset($_FILES['document'])
+            || !is_array($_FILES['document'])
+            || is_array($_FILES['document']['error'] ?? null)
+        ) {
+            jsonResponse([
+                'error' => 'Selecteer één PDF-document',
+            ], 400);
+        }
+
+        $documentFields = projectDocumentInput([
+            'title' => $_POST['title'] ?? null,
+        ]);
+
+        $file = $_FILES['document'];
+        $temporaryPath = $file['tmp_name'] ?? null;
+        $fileSize = $file['size'] ?? null;
+
+        if (
+            ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK
+            || !is_string($temporaryPath)
+            || !is_int($fileSize)
+        ) {
+            jsonResponse([
+                'error' => 'Upload mislukt. Controleer of het PDF-bestand kleiner is dan 10 MB.',
+            ], 400);
+        }
+
+        pdfFileDetails($temporaryPath, $fileSize);
+
+        $storageDirectory = __DIR__ . '/../storage/documents';
+
+        if (
+            !is_dir($storageDirectory)
+            || !is_writable($storageDirectory)
+        ) {
+            throw new RuntimeException('Documentopslag is niet beschikbaar');
+        }
+
+        $fileName = bin2hex(random_bytes(20)) . '.pdf';
+        $newFilePath = $storageDirectory . '/' . $fileName;
+
+        if (!move_uploaded_file($temporaryPath, $newFilePath)) {
+            throw new RuntimeException('Document kon niet worden opgeslagen');
+        }
+
+        $orderStatement = $pdo->prepare(
+            'SELECT COALESCE(MAX(sort_order), -1) + 1
+             FROM project_documents
+             WHERE project_id = :project_id'
+        );
+        $orderStatement->execute([
+            'project_id' => $projectId,
+        ]);
+        $sortOrder = (int) $orderStatement->fetchColumn();
+
+        $insertStatement = $pdo->prepare(
+            'INSERT INTO project_documents
+                (project_id, title, filename, original_name, sort_order)
+             VALUES
+                (:project_id, :title, :filename, :original_name, :sort_order)'
+        );
+        $insertStatement->execute([
+            'project_id' => $projectId,
+            'title' => $documentFields['title'],
+            'filename' => $fileName,
+            'original_name' => safeOriginalPdfName($file['name'] ?? null),
+            'sort_order' => $sortOrder,
+        ]);
+
+        jsonResponse([
+            'message' => 'PDF-document opgeslagen',
+            'document' => [
+                'id' => (int) $pdo->lastInsertId(),
+                'project_id' => $projectId,
+                'title' => $documentFields['title'],
+                'original_name' => safeOriginalPdfName($file['name'] ?? null),
+                'sort_order' => $sortOrder,
+            ],
+        ], 201);
+    } catch (Throwable $exception) {
+        if ($newFilePath !== null && is_file($newFilePath)) {
+            @unlink($newFilePath);
+        }
+
+        error_log(
+            'RGB Visuals PDF uploaden mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'PDF-document kon niet worden opgeslagen',
+        ], 500);
+    }
+}
+
+if (
+    preg_match(
+        '~^/api/admin/projects/([1-9][0-9]*)/documents/([1-9][0-9]*)$~',
+        $path,
+        $matches
+    )
+    && in_array($method, ['PATCH', 'DELETE'], true)
+) {
+    require __DIR__ . '/../config/session.php';
+    enforceAdminOrigin();
+
+    $projectId = (int) $matches[1];
+    $documentId = (int) $matches[2];
+
+    try {
+        $pdo = database();
+        enforceAdminAccess($pdo);
+        requireProject($pdo, $projectId);
+
+        $documentStatement = $pdo->prepare(
+            'SELECT id, filename
+             FROM project_documents
+             WHERE id = :document_id
+               AND project_id = :project_id
+             LIMIT 1'
+        );
+        $documentStatement->execute([
+            'document_id' => $documentId,
+            'project_id' => $projectId,
+        ]);
+        $document = $documentStatement->fetch();
+
+        if (!$document) {
+            jsonResponse([
+                'error' => 'Document niet gevonden',
+            ], 404);
+        }
+
+        if ($method === 'PATCH') {
+            $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+
+            if (!preg_match('~^application/json(?:\s*;|$)~i', $contentType)) {
+                jsonResponse([
+                    'error' => 'Gebruik application/json',
+                ], 415);
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            if (!is_array($input) || array_is_list($input)) {
+                jsonResponse([
+                    'error' => 'Ongeldige documentgegevens',
+                ], 422);
+            }
+
+            $fields = projectDocumentInput($input, true);
+
+            if ($fields === []) {
+                jsonResponse([
+                    'error' => 'Geen wijziging opgegeven',
+                ], 422);
+            }
+
+            $updates = [];
+            $parameters = [
+                'document_id' => $documentId,
+                'project_id' => $projectId,
+            ];
+
+            foreach (['title', 'sort_order'] as $field) {
+                if (array_key_exists($field, $fields)) {
+                    $updates[] = $field . ' = :' . $field;
+                    $parameters[$field] = $fields[$field];
+                }
+            }
+
+            $statement = $pdo->prepare(
+                'UPDATE project_documents
+                 SET ' . implode(', ', $updates) . '
+                 WHERE id = :document_id
+                   AND project_id = :project_id'
+            );
+            $statement->execute($parameters);
+
+            jsonResponse([
+                'message' => 'Document bijgewerkt',
+            ]);
+        }
+
+        $deleteStatement = $pdo->prepare(
+            'DELETE FROM project_documents
+             WHERE id = :document_id
+               AND project_id = :project_id'
+        );
+        $deleteStatement->execute([
+            'document_id' => $documentId,
+            'project_id' => $projectId,
+        ]);
+
+        $fileName = $document['filename'];
+
+        if (
+            is_string($fileName)
+            && preg_match('/\A[a-f0-9]{40}\.pdf\z/', $fileName)
+        ) {
+            $filePath = __DIR__ . '/../storage/documents/' . $fileName;
+
+            if (is_file($filePath) && !@unlink($filePath)) {
+                error_log('RGB Visuals: PDF-bestand kon niet worden verwijderd');
+            }
+        }
+
+        jsonResponse([
+            'message' => 'Document verwijderd',
+        ]);
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals document wijzigen mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Document kon niet worden gewijzigd',
+        ], 500);
+    }
+}
 
 /*
 |--------------------------------------------------------------------------

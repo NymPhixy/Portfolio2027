@@ -20,5 +20,7 @@ export const projects: Project[] = [
     result:
       "Een portfolio in ontwikkeling met een homepage en een eerste projectensectie.",
     gallery: [heroImg],
+    links: [],
+    documents: [],
   },
 ];
