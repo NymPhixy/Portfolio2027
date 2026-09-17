@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import CoverUploader from "../components/CoverUploader";
-import GalleryUploader from "../components/GalleryUploader";
-import ProjectDocumentsEditor from "../components/ProjectDocumentsEditor";
-import ProjectLinksEditor from "../components/ProjectLinksEditor";
+// import GalleryUploader from "../components/GalleryUploader";
+// import ProjectDocumentsEditor from "../components/ProjectDocumentsEditor";
+// import ProjectLinksEditor from "../components/ProjectLinksEditor";
 
 type ProjectForm = {
   title: string;
@@ -435,20 +435,25 @@ export default function ProjectEditor() {
                   }
                   onUploaded={() => setRefreshKey((current) => current + 1)}
                 />
-                <GalleryUploader
+                {/* <GalleryUploader
                   projectId={editingId}
                   onChanged={() => setRefreshKey((current) => current + 1)}
-                />
-                <ProjectLinksEditor
+                /> */}
+                {/* <ProjectLinksEditor
                   key={`links-${editingId}`}
                   projectId={editingId}
                   onChanged={() => setRefreshKey((current) => current + 1)}
-                />
-                <ProjectDocumentsEditor
+                /> */}
+                {/* <ProjectDocumentsEditor
                   key={`documents-${editingId}`}
                   projectId={editingId}
                   onChanged={() => setRefreshKey((current) => current + 1)}
                 />
+                {/* <ProjectDocumentsEditor
+                  key={`documents-${editingId}`}
+                  projectId={editingId}
+                  onChanged={() => setRefreshKey((current) => current + 1)}
+                /> */}
               </>
             )}
           </div>
