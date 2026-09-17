@@ -56,6 +56,9 @@ services:
       DB_USER: rgb_visuals_app
       DB_PASSWORD: ${DB_PASSWORD:?Vul DB_PASSWORD in}
       RGB_SETUP_ENABLED: "0"
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      CONTACT_FROM_EMAIL: ${CONTACT_FROM_EMAIL:-}
+      CONTACT_TO_EMAIL: ${CONTACT_TO_EMAIL:-r.g.b.janssen@st.hanze.nl}
     depends_on:
       seed:
         condition: service_completed_successfully

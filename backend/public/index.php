@@ -57,6 +57,8 @@ function jsonResponse(array $data, int $status = 200): never
     exit;
 }
 
+require __DIR__ . '/../routes/contact.php';
+
 /**
  * Controleert de extra casestudyvelden.
  *

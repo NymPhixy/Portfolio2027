@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import type { FormEvent } from "react";
 
@@ -11,25 +10,57 @@ export default function Contact() {
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const mailSubject = subject.trim() || "Contact via RGB Visuals";
+    setIsSubmitting(true);
+    setStatusMessage("");
+    setErrorMessage("");
 
-    const mailBody = [
-      `Naam: ${name.trim()}`,
-      `E-mailadres: ${email.trim()}`,
-      "",
-      "Bericht:",
-      message.trim(),
-    ].join("\n");
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          subject,
+          message,
+          website: "",
+        }),
+      });
 
-    const mailto = `mailto:${EMAIL}?subject=${encodeURIComponent(
-      mailSubject,
-    )}&body=${encodeURIComponent(mailBody)}`;
+      const result = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
 
-    window.location.href = mailto;
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Je bericht kon niet worden verzonden.",
+        );
+      }
+
+      setName("");
+      setEmail("");
+      setSubject("");
+      setMessage("");
+      setStatusMessage(result.message || "Bedankt, je bericht is verzonden.");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Je bericht kon niet worden verzonden. Probeer het later opnieuw.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -45,17 +76,15 @@ export default function Contact() {
           </h2>
 
           <p>
-            Een nieuwe website, een redesign of gewoon eens
-            kennismaken? Vertel me waar je aan werkt. Ik denk
-            graag met je mee over de mogelijkheden.
+            Een nieuwe website, een redesign of gewoon eens kennismaken? Vertel
+            me waar je aan werkt. Ik denk graag met je mee over de
+            mogelijkheden.
           </p>
         </div>
 
         <div className="rgb-contact__layout">
           <div className="rgb-contact__info">
-            <p className="rgb-contact__eyebrow">
-              DIRECT CONTACT
-            </p>
+            <p className="rgb-contact__eyebrow">DIRECT CONTACT</p>
 
             <h3>Je kunt me ook direct bereiken.</h3>
 
@@ -63,14 +92,8 @@ export default function Contact() {
               Kies de manier die voor jou het prettigst werkt.
             </p>
 
-            <a
-              className="rgb-contact__method"
-              href={`mailto:${EMAIL}`}
-            >
-              <span
-                className="rgb-contact__method-icon"
-                aria-hidden="true"
-              >
+            <a className="rgb-contact__method" href={`mailto:${EMAIL}`}>
+              <span className="rgb-contact__method-icon" aria-hidden="true">
                 @
               </span>
 
@@ -90,10 +113,7 @@ export default function Contact() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <span
-                className="rgb-contact__method-icon"
-                aria-hidden="true"
-              >
+              <span className="rgb-contact__method-icon" aria-hidden="true">
                 ↗
               </span>
 
@@ -105,14 +125,8 @@ export default function Contact() {
               <span aria-hidden="true">↗</span>
             </a>
 
-            <a
-              className="rgb-contact__method"
-              href={`tel:${PHONE}`}
-            >
-              <span
-                className="rgb-contact__method-icon"
-                aria-hidden="true"
-              >
+            <a className="rgb-contact__method" href={`tel:${PHONE}`}>
+              <span className="rgb-contact__method-icon" aria-hidden="true">
                 ☎
               </span>
 
@@ -132,22 +146,17 @@ export default function Contact() {
 
           <div className="rgb-contact__form-card">
             <div className="rgb-contact__form-heading">
-              <span className="rgb-contact__eyebrow">
-                STUUR EEN BERICHT
-              </span>
+              <span className="rgb-contact__eyebrow">STUUR EEN BERICHT</span>
 
               <h3>Vertel me over je project.</h3>
 
               <p>
-                Vul het formulier in om een bericht in je
-                e-mailapp klaar te zetten.
+                Vul het formulier in en ik neem zo snel mogelijk contact met je
+                op.
               </p>
             </div>
 
-            <form
-              className="rgb-contact__form"
-              onSubmit={handleSubmit}
-            >
+            <form className="rgb-contact__form" onSubmit={handleSubmit}>
               <div className="rgb-contact__field-row">
                 <div className="rgb-contact__field">
                   <label htmlFor="contact-name">
@@ -161,9 +170,7 @@ export default function Contact() {
                     autoComplete="name"
                     placeholder="Jouw naam"
                     value={name}
-                    onChange={(event) =>
-                      setName(event.target.value)
-                    }
+                    onChange={(event) => setName(event.target.value)}
                     maxLength={100}
                     required
                   />
@@ -181,9 +188,7 @@ export default function Contact() {
                     autoComplete="email"
                     placeholder="naam@bedrijf.nl"
                     value={email}
-                    onChange={(event) =>
-                      setEmail(event.target.value)
-                    }
+                    onChange={(event) => setEmail(event.target.value)}
                     maxLength={190}
                     required
                   />
@@ -191,9 +196,7 @@ export default function Contact() {
               </div>
 
               <div className="rgb-contact__field">
-                <label htmlFor="contact-subject">
-                  Onderwerp
-                </label>
+                <label htmlFor="contact-subject">Onderwerp</label>
 
                 <input
                   id="contact-subject"
@@ -201,9 +204,7 @@ export default function Contact() {
                   type="text"
                   placeholder="Bijvoorbeeld: Nieuwe website"
                   value={subject}
-                  onChange={(event) =>
-                    setSubject(event.target.value)
-                  }
+                  onChange={(event) => setSubject(event.target.value)}
                   maxLength={150}
                 />
               </div>
@@ -219,26 +220,55 @@ export default function Contact() {
                   rows={6}
                   placeholder="Vertel me meer over je idee of project..."
                   value={message}
-                  onChange={(event) =>
-                    setMessage(event.target.value)
-                  }
+                  onChange={(event) => setMessage(event.target.value)}
                   maxLength={3000}
                   required
+                />
+              </div>
+
+              <div className="rgb-contact__honeypot" aria-hidden="true">
+                <label htmlFor="contact-website">Website</label>
+                <input
+                  id="contact-website"
+                  name="website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value=""
+                  onChange={() => undefined}
                 />
               </div>
 
               <button
                 className="rgb-contact__submit"
                 type="submit"
+                disabled={isSubmitting}
               >
-                <span>Open bericht in e-mailapp</span>
+                <span>
+                  {isSubmitting
+                    ? "Bericht wordt verzonden..."
+                    : "Verstuur bericht"}
+                </span>
                 <span aria-hidden="true">↗</span>
               </button>
 
+              {statusMessage && (
+                <p className="rgb-contact__form-status" role="status">
+                  {statusMessage}
+                </p>
+              )}
+
+              {errorMessage && (
+                <p
+                  className="rgb-contact__form-status rgb-contact__form-status--error"
+                  role="alert"
+                >
+                  {errorMessage}
+                </p>
+              )}
+
               <p className="rgb-contact__form-disclaimer">
-                Het formulier opent je e-mailprogramma. Je
-                bericht wordt pas verstuurd nadat je het daar
-                zelf verzendt.
+                Je bericht wordt veilig rechtstreeks naar RGB Visuals verstuurd.
               </p>
             </form>
           </div>
