@@ -1,3 +1,10 @@
+export type ProjectGalleryImage = {
+  url: string;
+  altText?: string | null;
+};
+
+export type ProjectGalleryItem = string | ProjectGalleryImage;
+
 export type Project = {
   id: number | string;
   title: string;
@@ -14,5 +21,6 @@ export type Project = {
   challenge: string;
   solution: string;
   result: string;
-  gallery: string[];
+  gallery: ProjectGalleryItem[];
+  cmsProjectId?: number;
 };

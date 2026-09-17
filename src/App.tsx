@@ -69,6 +69,7 @@ function convertApiProject(project: ApiProject): Project {
   return {
     // Voorkomt botsingen met ID's uit src/data/projects.ts.
     id: `cms-${project.id}`,
+    cmsProjectId: project.id,
 
     title: project.title,
 
@@ -91,7 +92,6 @@ function convertApiProject(project: ApiProject): Project {
     solution: project.solution ?? "",
     result: project.result ?? "",
 
-    // Afbeeldingengalerij koppelen we in een volgende stap.
     gallery: [],
   };
 }
@@ -172,7 +172,7 @@ function App() {
 
         <main>
           {selectedProject ? (
-            <ProjectDetail project={selectedProject} />
+            <ProjectDetail key={selectedProject.id} project={selectedProject} />
           ) : projectsLoading ? (
             <section className="project-not-found">
               <h1>Project laden...</h1>

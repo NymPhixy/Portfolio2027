@@ -1,10 +1,94 @@
+import { useEffect, useState } from "react";
 import type { Project } from "../types/project";
+import type { ProjectGalleryItem } from "../types/project";
 
 type ProjectDetailProps = {
   project: Project;
 };
 
+type PublicGalleryResponse = {
+  images?: Array<{
+    image_url: string;
+    alt_text: string | null;
+  }>;
+  error?: string;
+};
+
+function galleryImageDetails(image: ProjectGalleryItem): {
+  url: string;
+  altText: string | null;
+} {
+  if (typeof image === "string") {
+    return {
+      url: image,
+      altText: null,
+    };
+  }
+
+  return {
+    url: image.url,
+    altText: image.altText ?? null,
+  };
+}
+
 export default function ProjectDetail({ project }: ProjectDetailProps) {
+  const [gallery, setGallery] = useState<ProjectGalleryItem[]>(project.gallery);
+  const [galleryLoading, setGalleryLoading] = useState(
+    project.cmsProjectId !== undefined,
+  );
+  const [galleryError, setGalleryError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    if (project.cmsProjectId === undefined) {
+      return () => controller.abort();
+    }
+
+    async function loadGallery() {
+      try {
+        const response = await fetch(
+          `/api/projects/${project.cmsProjectId}/images`,
+          {
+            signal: controller.signal,
+            credentials: "same-origin",
+            cache: "no-store",
+          },
+        );
+        const data: PublicGalleryResponse = await response.json();
+
+        if (!response.ok || !Array.isArray(data.images)) {
+          throw new Error(
+            data.error ?? "Projectbeelden konden niet worden geladen.",
+          );
+        }
+
+        if (!controller.signal.aborted) {
+          setGallery(
+            data.images.map((image) => ({
+              url: image.image_url,
+              altText: image.alt_text,
+            })),
+          );
+          setGalleryLoading(false);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setGalleryError(
+            error instanceof Error
+              ? error.message
+              : "Projectbeelden konden niet worden geladen.",
+          );
+          setGalleryLoading(false);
+        }
+      }
+    }
+
+    void loadGallery();
+
+    return () => controller.abort();
+  }, [project.cmsProjectId]);
+
   const hasMeta =
     Boolean(project.client) ||
     Boolean(project.role) ||
@@ -95,19 +179,38 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
           </p>
         )}
 
-        {project.gallery.length > 0 && (
+        {galleryLoading && (
+          <p className="project-detail-intro" role="status">
+            Projectbeelden laden...
+          </p>
+        )}
+
+        {galleryError && (
+          <p className="project-detail-intro" role="alert">
+            {galleryError}
+          </p>
+        )}
+
+        {!galleryLoading && !galleryError && gallery.length > 0 && (
           <div className="project-detail-gallery">
             <h2>Projectbeelden</h2>
 
             <div className="project-gallery-grid">
-              {project.gallery.map((image, index) => (
-                <img
-                  key={`${image}-${index}`}
-                  src={image}
-                  alt={`${project.title} – afbeelding ${index + 1}`}
-                  loading="lazy"
-                />
-              ))}
+              {gallery.map((image, index) => {
+                const imageDetails = galleryImageDetails(image);
+
+                return (
+                  <img
+                    key={`${imageDetails.url}-${index}`}
+                    src={imageDetails.url}
+                    alt={
+                      imageDetails.altText ||
+                      `${project.title}, afbeelding ${index + 1}`
+                    }
+                    loading="lazy"
+                  />
+                );
+              })}
             </div>
           </div>
         )}

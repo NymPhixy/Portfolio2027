@@ -57,6 +57,113 @@ function jsonResponse(array $data, int $status = 200): never
     exit;
 }
 
+function enforceAdminAccess(PDO $pdo): void
+{
+    if (!isset($_SESSION['admin_id'])) {
+        jsonResponse([
+            'error' => 'Niet ingelogd',
+        ], 401);
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT id
+         FROM admin_users
+         WHERE id = :id
+           AND is_active = 1
+         LIMIT 1'
+    );
+
+    $statement->execute([
+        'id' => (int) $_SESSION['admin_id'],
+    ]);
+
+    if (!$statement->fetch()) {
+        jsonResponse([
+            'error' => 'Geen toegang',
+        ], 403);
+    }
+}
+
+function enforceAdminOrigin(): void
+{
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+    if (
+        $origin !== ''
+        && !in_array(
+            $origin,
+            [
+                'http://localhost:5173',
+                'http://127.0.0.1:5173',
+            ],
+            true
+        )
+    ) {
+        jsonResponse([
+            'error' => 'Ongeldige aanvraag',
+        ], 403);
+    }
+}
+
+function imageFileDetails(string $temporaryPath, int $fileSize): array
+{
+    if (
+        $fileSize <= 0
+        || $fileSize > 2 * 1024 * 1024
+        || !is_uploaded_file($temporaryPath)
+    ) {
+        jsonResponse([
+            'error' => 'Ongeldig bestand of bestand groter dan 2 MB',
+        ], 422);
+    }
+
+    $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $fileInfo->file($temporaryPath);
+
+    $allowedTypes = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+    ];
+
+    if (!is_string($mimeType) || !isset($allowedTypes[$mimeType])) {
+        jsonResponse([
+            'error' => 'Alleen JPG, PNG en WebP zijn toegestaan',
+        ], 422);
+    }
+
+    $imageInfo = @getimagesize($temporaryPath);
+
+    if (
+        $imageInfo === false
+        || ($imageInfo['mime'] ?? '') !== $mimeType
+    ) {
+        jsonResponse([
+            'error' => 'Het bestand is geen geldige afbeelding',
+        ], 422);
+    }
+
+    $width = (int) $imageInfo[0];
+    $height = (int) $imageInfo[1];
+
+    if (
+        $width <= 0
+        || $height <= 0
+        || $width > 6000
+        || $height > 6000
+        || $width * $height > 20000000
+    ) {
+        jsonResponse([
+            'error' => 'De afmetingen van de afbeelding zijn te groot',
+        ], 422);
+    }
+
+    return [
+        'mime_type' => $mimeType,
+        'extension' => $allowedTypes[$mimeType],
+    ];
+}
+
 require __DIR__ . '/../routes/contact.php';
 
 /**
@@ -193,6 +300,163 @@ if ($path === '/api/projects' && $method === 'GET') {
         jsonResponse([
             'error' => 'Projecten konden niet worden opgehaald',
         ], 500);
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Openbare API: galerij van een gepubliceerd project
+|--------------------------------------------------------------------------
+*/
+
+if (
+    preg_match(
+        '~^/api/projects/([1-9][0-9]*)/images$~',
+        $path,
+        $matches
+    )
+    && $method === 'GET'
+) {
+    try {
+        $statement = database()->prepare(
+            'SELECT
+                project_images.id,
+                project_images.alt_text
+             FROM project_images
+             INNER JOIN projects
+                ON projects.id = project_images.project_id
+             WHERE project_images.project_id = :project_id
+               AND projects.status = :status
+             ORDER BY project_images.sort_order ASC, project_images.id ASC'
+        );
+
+        $projectId = (int) $matches[1];
+
+        $statement->execute([
+            'project_id' => $projectId,
+            'status' => 'published',
+        ]);
+
+        $images = array_map(
+            static function (array $image) use ($projectId): array {
+                $imageId = (int) $image['id'];
+
+                return [
+                    'id' => $imageId,
+                    'alt_text' => $image['alt_text'],
+                    'image_url' => sprintf(
+                        '/api/projects/%d/images/%d/file',
+                        $projectId,
+                        $imageId
+                    ),
+                ];
+            },
+            $statement->fetchAll()
+        );
+
+        jsonResponse([
+            'images' => $images,
+        ]);
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals openbare galerij ophalen mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Galerij kon niet worden opgehaald',
+        ], 500);
+    }
+}
+
+if (
+    preg_match(
+        '~^/api/projects/([1-9][0-9]*)/images/([1-9][0-9]*)/file$~',
+        $path,
+        $matches
+    )
+    && $method === 'GET'
+) {
+    try {
+        $statement = database()->prepare(
+            'SELECT project_images.filename
+             FROM project_images
+             INNER JOIN projects
+                ON projects.id = project_images.project_id
+             WHERE project_images.project_id = :project_id
+               AND project_images.id = :image_id
+               AND projects.status = :status
+             LIMIT 1'
+        );
+
+        $statement->execute([
+            'project_id' => (int) $matches[1],
+            'image_id' => (int) $matches[2],
+            'status' => 'published',
+        ]);
+
+        $image = $statement->fetch();
+
+        if (!$image || !is_string($image['filename'])) {
+            jsonResponse([
+                'error' => 'Afbeelding niet gevonden',
+            ], 404);
+        }
+
+        if (
+            !preg_match(
+                '/\A[a-f0-9]{40}\.(jpg|png|webp)\z/',
+                $image['filename'],
+                $fileMatches
+            )
+        ) {
+            jsonResponse([
+                'error' => 'Afbeelding niet gevonden',
+            ], 404);
+        }
+
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+        ];
+        $filePath = __DIR__ . '/../storage/gallery/' . $image['filename'];
+
+        if (!is_file($filePath) || !is_readable($filePath)) {
+            jsonResponse([
+                'error' => 'Afbeelding niet gevonden',
+            ], 404);
+        }
+
+        $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+        $actualType = $fileInfo->file($filePath);
+
+        if ($actualType !== $mimeTypes[$fileMatches[1]]) {
+            jsonResponse([
+                'error' => 'Afbeelding niet gevonden',
+            ], 404);
+        }
+
+        header('Content-Type: ' . $actualType);
+        header('Cache-Control: public, max-age=3600');
+
+        $fileSize = filesize($filePath);
+
+        if ($fileSize !== false) {
+            header('Content-Length: ' . $fileSize);
+        }
+
+        readfile($filePath);
+        exit;
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals openbare galerijafbeelding ophalen mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Afbeelding kon niet worden opgehaald',
+        ], 404);
     }
 }
 
@@ -906,6 +1170,417 @@ if (
 | Onbekende endpoint
 |--------------------------------------------------------------------------
 */
+
+
+/*
+|--------------------------------------------------------------------------
+| CMS: projectgalerij beheren
+|--------------------------------------------------------------------------
+*/
+
+if (
+    preg_match(
+        '~^/api/admin/projects/([1-9][0-9]*)/images$~',
+        $path,
+        $matches
+    )
+    && in_array($method, ['GET', 'POST'], true)
+) {
+    require __DIR__ . '/../config/session.php';
+
+    enforceAdminOrigin();
+
+    $projectId = (int) $matches[1];
+    $newFilePath = null;
+
+    try {
+        $pdo = database();
+        enforceAdminAccess($pdo);
+
+        $projectStatement = $pdo->prepare(
+            'SELECT id
+             FROM projects
+             WHERE id = :id
+             LIMIT 1'
+        );
+        $projectStatement->execute(['id' => $projectId]);
+
+        if (!$projectStatement->fetch()) {
+            jsonResponse([
+                'error' => 'Project niet gevonden',
+            ], 404);
+        }
+
+        if ($method === 'GET') {
+            $statement = $pdo->prepare(
+                'SELECT id, project_id, filename, alt_text, sort_order, created_at
+                 FROM project_images
+                 WHERE project_id = :project_id
+                 ORDER BY sort_order ASC, id ASC'
+            );
+            $statement->execute(['project_id' => $projectId]);
+
+            $images = array_map(
+                static function (array $image) use ($projectId): array {
+                    $image['id'] = (int) $image['id'];
+                    $image['project_id'] = (int) $image['project_id'];
+                    $image['sort_order'] = (int) $image['sort_order'];
+                    $image['image_url'] = sprintf(
+                        '/api/admin/projects/%d/images/%d/file',
+                        $projectId,
+                        $image['id']
+                    );
+
+                    return $image;
+                },
+                $statement->fetchAll()
+            );
+
+            jsonResponse(['images' => $images]);
+        }
+
+        if (($_SERVER['HTTP_X_RGB_UPLOAD'] ?? '') !== '1') {
+            jsonResponse([
+                'error' => 'Ongeldige uploadaanvraag',
+            ], 403);
+        }
+
+        if (
+            !isset($_FILES['image'])
+            || !is_array($_FILES['image'])
+            || is_array($_FILES['image']['error'] ?? null)
+        ) {
+            jsonResponse([
+                'error' => 'Selecteer één afbeelding',
+            ], 400);
+        }
+
+        $file = $_FILES['image'];
+        $temporaryPath = $file['tmp_name'] ?? null;
+        $fileSize = $file['size'] ?? null;
+
+        if (
+            ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK
+            || !is_string($temporaryPath)
+            || !is_int($fileSize)
+        ) {
+            jsonResponse([
+                'error' => 'Upload mislukt. Controleer of de afbeelding kleiner is dan 2 MB.',
+            ], 400);
+        }
+
+        $fileDetails = imageFileDetails($temporaryPath, $fileSize);
+        $storageDirectory = __DIR__ . '/../storage/gallery';
+
+        if (
+            !is_dir($storageDirectory)
+            || !is_writable($storageDirectory)
+        ) {
+            throw new RuntimeException('Galerijopslag is niet beschikbaar');
+        }
+
+        $fileName = bin2hex(random_bytes(20)) . '.' . $fileDetails['extension'];
+        $newFilePath = $storageDirectory . '/' . $fileName;
+
+        if (!move_uploaded_file($temporaryPath, $newFilePath)) {
+            throw new RuntimeException('Afbeelding kon niet worden opgeslagen');
+        }
+
+        $orderStatement = $pdo->prepare(
+            'SELECT COALESCE(MAX(sort_order), -1) + 1
+             FROM project_images
+             WHERE project_id = :project_id'
+        );
+        $orderStatement->execute(['project_id' => $projectId]);
+        $sortOrder = (int) $orderStatement->fetchColumn();
+
+        $insertStatement = $pdo->prepare(
+            'INSERT INTO project_images
+                (project_id, filename, alt_text, sort_order)
+             VALUES
+                (:project_id, :filename, NULL, :sort_order)'
+        );
+        $insertStatement->execute([
+            'project_id' => $projectId,
+            'filename' => $fileName,
+            'sort_order' => $sortOrder,
+        ]);
+
+        jsonResponse([
+            'message' => 'Galerijafbeelding opgeslagen',
+            'image' => [
+                'id' => (int) $pdo->lastInsertId(),
+                'project_id' => $projectId,
+                'filename' => $fileName,
+                'alt_text' => null,
+                'sort_order' => $sortOrder,
+                'image_url' => sprintf(
+                    '/api/admin/projects/%d/images/%d/file',
+                    $projectId,
+                    (int) $pdo->lastInsertId()
+                ),
+            ],
+        ], 201);
+    } catch (Throwable $exception) {
+        if ($newFilePath !== null && is_file($newFilePath)) {
+            @unlink($newFilePath);
+        }
+
+        error_log(
+            'RGB Visuals galerij uploaden mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Afbeelding kon niet worden opgeslagen',
+        ], 500);
+    }
+}
+
+if (
+    preg_match(
+        '~^/api/admin/projects/([1-9][0-9]*)/images/([1-9][0-9]*)$~',
+        $path,
+        $matches
+    )
+    && in_array($method, ['PATCH', 'DELETE'], true)
+) {
+    require __DIR__ . '/../config/session.php';
+    enforceAdminOrigin();
+
+    $projectId = (int) $matches[1];
+    $imageId = (int) $matches[2];
+
+    try {
+        $pdo = database();
+        enforceAdminAccess($pdo);
+
+        $imageStatement = $pdo->prepare(
+            'SELECT id, filename
+             FROM project_images
+             WHERE id = :image_id
+               AND project_id = :project_id
+             LIMIT 1'
+        );
+        $imageStatement->execute([
+            'image_id' => $imageId,
+            'project_id' => $projectId,
+        ]);
+        $image = $imageStatement->fetch();
+
+        if (!$image) {
+            jsonResponse([
+                'error' => 'Galerijafbeelding niet gevonden',
+            ], 404);
+        }
+
+        if ($method === 'PATCH') {
+            $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+
+            if (!preg_match('~^application/json(?:\s*;|$)~i', $contentType)) {
+                jsonResponse([
+                    'error' => 'Gebruik application/json',
+                ], 415);
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            if (!is_array($input) || array_is_list($input)) {
+                jsonResponse([
+                    'error' => 'Ongeldige galerijgegevens',
+                ], 422);
+            }
+
+            $updates = [];
+            $parameters = [
+                'image_id' => $imageId,
+                'project_id' => $projectId,
+            ];
+
+            if (array_key_exists('alt_text', $input)) {
+                if ($input['alt_text'] !== null && !is_string($input['alt_text'])) {
+                    jsonResponse([
+                        'error' => 'Ongeldige alt-tekst',
+                    ], 422);
+                }
+
+                $altText = $input['alt_text'] === null
+                    ? null
+                    : trim($input['alt_text']);
+
+                if ($altText !== null && strlen($altText) > 255) {
+                    jsonResponse([
+                        'error' => 'De alt-tekst is te lang',
+                    ], 422);
+                }
+
+                $updates[] = 'alt_text = :alt_text';
+                $parameters['alt_text'] = $altText === '' ? null : $altText;
+            }
+
+            if (array_key_exists('sort_order', $input)) {
+                $sortOrder = $input['sort_order'];
+
+                if (
+                    (!is_int($sortOrder) && !is_string($sortOrder))
+                    || (is_string($sortOrder) && !preg_match('/^\d+$/', $sortOrder))
+                    || (int) $sortOrder > 1000000
+                ) {
+                    jsonResponse([
+                        'error' => 'Ongeldige volgorde',
+                    ], 422);
+                }
+
+                $updates[] = 'sort_order = :sort_order';
+                $parameters['sort_order'] = (int) $sortOrder;
+            }
+
+            if ($updates === []) {
+                jsonResponse([
+                    'error' => 'Geen wijziging opgegeven',
+                ], 422);
+            }
+
+            $statement = $pdo->prepare(
+                'UPDATE project_images
+                 SET ' . implode(', ', $updates) . '
+                 WHERE id = :image_id
+                   AND project_id = :project_id'
+            );
+            $statement->execute($parameters);
+
+            jsonResponse([
+                'message' => 'Galerijafbeelding bijgewerkt',
+            ]);
+        }
+
+        $deleteStatement = $pdo->prepare(
+            'DELETE FROM project_images
+             WHERE id = :image_id
+               AND project_id = :project_id'
+        );
+        $deleteStatement->execute([
+            'image_id' => $imageId,
+            'project_id' => $projectId,
+        ]);
+
+        $fileName = $image['filename'];
+
+        if (
+            is_string($fileName)
+            && preg_match('/\A[a-f0-9]{40}\.(jpg|png|webp)\z/', $fileName)
+        ) {
+            $filePath = __DIR__ . '/../storage/gallery/' . $fileName;
+
+            if (is_file($filePath) && !@unlink($filePath)) {
+                error_log('RGB Visuals: galerijbestand kon niet worden verwijderd');
+            }
+        }
+
+        jsonResponse([
+            'message' => 'Galerijafbeelding verwijderd',
+        ]);
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals galerijwijziging mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Galerijafbeelding kon niet worden gewijzigd',
+        ], 500);
+    }
+}
+
+if (
+    preg_match(
+        '~^/api/admin/projects/([1-9][0-9]*)/images/([1-9][0-9]*)/file$~',
+        $path,
+        $matches
+    )
+    && $method === 'GET'
+) {
+    require __DIR__ . '/../config/session.php';
+
+    try {
+        $pdo = database();
+        enforceAdminAccess($pdo);
+
+        $statement = $pdo->prepare(
+            'SELECT filename
+             FROM project_images
+             WHERE project_id = :project_id
+               AND id = :image_id
+             LIMIT 1'
+        );
+        $statement->execute([
+            'project_id' => (int) $matches[1],
+            'image_id' => (int) $matches[2],
+        ]);
+        $image = $statement->fetch();
+
+        if (!$image || !is_string($image['filename'])) {
+            jsonResponse([
+                'error' => 'Afbeelding niet gevonden',
+            ], 404);
+        }
+
+        if (
+            !preg_match(
+                '/\A[a-f0-9]{40}\.(jpg|png|webp)\z/',
+                $image['filename'],
+                $fileMatches
+            )
+        ) {
+            jsonResponse([
+                'error' => 'Afbeelding niet gevonden',
+            ], 404);
+        }
+
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+        ];
+        $filePath = __DIR__ . '/../storage/gallery/' . $image['filename'];
+
+        if (!is_file($filePath) || !is_readable($filePath)) {
+            jsonResponse([
+                'error' => 'Afbeelding niet gevonden',
+            ], 404);
+        }
+
+        $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+        $actualType = $fileInfo->file($filePath);
+
+        if ($actualType !== $mimeTypes[$fileMatches[1]]) {
+            jsonResponse([
+                'error' => 'Afbeelding niet gevonden',
+            ], 404);
+        }
+
+        header('Content-Type: ' . $actualType);
+        header('Cache-Control: private, no-store');
+
+        $fileSize = filesize($filePath);
+
+        if ($fileSize !== false) {
+            header('Content-Length: ' . $fileSize);
+        }
+
+        readfile($filePath);
+        exit;
+    } catch (Throwable $exception) {
+        error_log(
+            'RGB Visuals galerijafbeelding ophalen mislukt: '
+            . $exception->getMessage()
+        );
+
+        jsonResponse([
+            'error' => 'Afbeelding kon niet worden opgehaald',
+        ], 500);
+    }
+}
 
 
 /*

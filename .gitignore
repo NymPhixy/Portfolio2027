@@ -26,5 +26,7 @@ dist-ssr
 /.env
 /backend/config/*.local.php
 /backend/storage/covers/
+/backend/storage/gallery/*
+!/backend/storage/gallery/.gitkeep
 
 /backend/config/database.local.php

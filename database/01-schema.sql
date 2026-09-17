@@ -36,3 +36,23 @@ CREATE TABLE IF NOT EXISTS projects (
     PRIMARY KEY (id),
     UNIQUE KEY uq_projects_slug (slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Meerdere afbeeldingen per project
+CREATE TABLE IF NOT EXISTS project_images (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    project_id INT UNSIGNED NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    alt_text VARCHAR(255) NULL,
+    sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_project_images_filename (filename),
+    KEY idx_project_images_order (project_id, sort_order, id),
+
+    CONSTRAINT fk_project_images_project
+        FOREIGN KEY (project_id)
+        REFERENCES projects(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

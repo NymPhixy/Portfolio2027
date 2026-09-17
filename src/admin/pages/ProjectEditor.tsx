@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import CoverUploader from "../components/CoverUploader";
+import GalleryUploader from "../components/GalleryUploader";
 
 type ProjectForm = {
   title: string;
@@ -39,6 +40,9 @@ type ProjectsResponse = {
 type SaveResponse = {
   message?: string;
   error?: string;
+  project?: {
+    id?: number;
+  };
 };
 
 function createEmptyForm(): ProjectForm {
@@ -226,13 +230,22 @@ export default function ProjectEditor() {
         );
       }
 
+      const savedProjectId = data.project?.id;
+
+      if (
+        typeof savedProjectId !== "number" ||
+        !Number.isInteger(savedProjectId) ||
+        savedProjectId <= 0
+      ) {
+        throw new Error("De API gaf geen geldig project-ID terug.");
+      }
+
       setSaveMessage(
         data.message ??
           (isEditing ? "Project bijgewerkt." : "Project opgeslagen."),
       );
 
-      setEditingId(null);
-      setForm(createEmptyForm());
+      setEditingId(savedProjectId);
       setRefreshKey((current) => current + 1);
     } catch (error) {
       setSaveError(
@@ -406,19 +419,25 @@ export default function ProjectEditor() {
             </form>
 
             {editingId !== null && (
-              <CoverUploader
-                key={editingId}
-                projectId={editingId}
-                isPublished={
-                  projects.find((project) => project.id === editingId)
-                    ?.status === "published"
-                }
-                coverImage={
-                  projects.find((project) => project.id === editingId)
-                    ?.cover_image ?? null
-                }
-                onUploaded={() => setRefreshKey((current) => current + 1)}
-              />
+              <>
+                <CoverUploader
+                  key={editingId}
+                  projectId={editingId}
+                  isPublished={
+                    projects.find((project) => project.id === editingId)
+                      ?.status === "published"
+                  }
+                  coverImage={
+                    projects.find((project) => project.id === editingId)
+                      ?.cover_image ?? null
+                  }
+                  onUploaded={() => setRefreshKey((current) => current + 1)}
+                />
+                <GalleryUploader
+                  projectId={editingId}
+                  onChanged={() => setRefreshKey((current) => current + 1)}
+                />
+              </>
             )}
           </div>
 
